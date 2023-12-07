@@ -15,6 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
+## Cmake : hik_camera
 ament_auto_add_library(${PROJECT_NAME} SHARED
   src/hik_camera_node.cpp
 )
@@ -49,6 +50,23 @@ rclcpp_components_register_node(${PROJECT_NAME}
   PLUGIN hik_camera::HikCameraNode
   EXECUTABLE ${PROJECT_NAME}_node
 )
+
+
+## Cmake : video_capturer
+find_package(OpenCV REQUIRED COMPONENTS highgui imgcodecs imgproc videoio)
+
+set(VIDEO_CAPTURER video_capturer)
+ament_auto_add_library(${VIDEO_CAPTURER} SHARED 
+  src/video_capturer.cpp
+)
+target_link_libraries(${VIDEO_CAPTURER}
+  opencv_highgui  
+)
+rclcpp_components_register_node(${VIDEO_CAPTURER}
+  PLUGIN video_capturer::VideoCapturerNode 
+  EXECUTABLE ${VIDEO_CAPTURER}_node
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
