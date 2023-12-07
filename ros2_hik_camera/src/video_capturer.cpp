@@ -68,7 +68,7 @@ namespace video_capturer
       if (capture_thread_.joinable())
         capture_thread_.join();
 
-      RCLCPP_INFO(this->get_logger(), "VideoCapturerNode deestroyed!");
+      RCLCPP_INFO(this->get_logger(), "VideoCapturerNode destroyed!");
     }
 
   private:

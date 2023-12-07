@@ -17,31 +17,49 @@ namespace image_process
   public:
     explicit ImageProcessNode(const rclcpp::NodeOptions &options) : Node("image_process", options)
     {
-      RCLCPP_INFO(this->get_logger(), "Starting Image Process!");
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
       image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
                                                                "raw", qos);
+      process_thread_ = std::thread{[this]() -> void
+                                    {
+                                      while (rclcpp::ok())
+                                      {
+                                        if (!frame_.empty())
+                                        {
+                                          std::lock_guard<std::mutex> lock(g_mutex);
+                                          /*
+                                            add your process code here
+                                          */
+                                          RCLCPP_INFO(this->get_logger(), "Processing!");
+                                        }
+                                      }
+                                    }};
+      RCLCPP_INFO(this->get_logger(), "Starting Image Process!");
     }
 
     ~ImageProcessNode()
     {
       image_sub_.shutdown();
+      if (process_thread_.joinable())
+        process_thread_.join();
       RCLCPP_INFO(this->get_logger(), "ImageProcessNode deestroyed!");
     }
 
   private:
-    sensor_msgs::msg::Image::SharedPtr image_msg_ptr_;
     image_transport::CameraSubscriber image_sub_;
+    cv::Mat frame_;
+    std::thread process_thread_;
+    std::mutex g_mutex;
 
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &msg,
                        const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camara_info)
     {
+      std::lock_guard<std::mutex> lock(g_mutex);
       try
       {
-        cv::imshow("view", cv_bridge::toCvShare(msg, "bgr8")->image);
-        cv::waitKey(10);
+        frame_ = cv_bridge::toCvShare(msg, "bgr8")->image;
       }
       catch (const cv_bridge::Exception &e)
       {
