@@ -3,5 +3,6 @@
     "colcon.workspaceSetup": [
         "/opt/ros/foxy/setup.sh",
         "install/setup.sh"
-    ]
+    ],
+    "C_Cpp.default.compilerPath": "/usr/bin/g++-11"
 }
