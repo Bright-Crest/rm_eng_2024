@@ -37,7 +37,7 @@ namespace video_capturer
       RCLCPP_INFO(this->get_logger(), "Starting VideoCapturerNode!");
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
-      video_pub_ = image_transport::create_publisher(this, "image_raw", qos);
+      video_pub_ = image_transport::create_camera_publisher(this, "image_raw", qos);
 
       capture_thread_ = std::thread{[this]() -> void
                                     {
@@ -51,7 +51,7 @@ namespace video_capturer
                                         if (!frame.empty())
                                         {
                                           image_msg_ptr_ = cv_bridge::CvImage(hdr, "bgr8", frame).toImageMsg();
-                                          video_pub_.publish(image_msg_ptr_);
+                                          video_pub_.publish(*image_msg_ptr_, camera_info_msg_);
                                           cv::waitKey(10);
                                         }
                                         else
@@ -76,7 +76,8 @@ namespace video_capturer
     int frame_cnt_;
 
     sensor_msgs::msg::Image::SharedPtr image_msg_ptr_;
-    image_transport::Publisher video_pub_;
+    sensor_msgs::msg::CameraInfo camera_info_msg_;
+    image_transport::CameraPublisher video_pub_;
 
     std::thread capture_thread_;
   };

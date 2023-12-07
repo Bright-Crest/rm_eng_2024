@@ -52,8 +52,8 @@ rclcpp_components_register_node(${PROJECT_NAME}
 )
 
 
-## Cmake : video_capturer
 find_package(OpenCV REQUIRED COMPONENTS highgui imgcodecs imgproc videoio)
+## Cmake : video_capturer
 
 set(VIDEO_CAPTURER video_capturer)
 ament_auto_add_library(${VIDEO_CAPTURER} SHARED 
@@ -67,6 +67,18 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
   EXECUTABLE ${VIDEO_CAPTURER}_node
 )
 
+## Cmake : image_process
+set(IMAGE_PROCESS image_process)
+ament_auto_add_library(${IMAGE_PROCESS} SHARED 
+  src/image_process.cpp
+)
+target_link_libraries(${IMAGE_PROCESS}
+  opencv_highgui  
+)
+rclcpp_components_register_node(${IMAGE_PROCESS}
+  PLUGIN image_process::ImageProcessNode 
+  EXECUTABLE ${IMAGE_PROCESS}_node
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
