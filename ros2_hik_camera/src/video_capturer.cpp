@@ -81,7 +81,7 @@ namespace video_capturer
 
     std::thread capture_thread_;
   };
-} // namespace hik_camera
+} // namespace video_capturer
 
 #include "rclcpp_components/register_node_macro.hpp"
 

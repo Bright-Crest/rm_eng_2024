@@ -52,7 +52,7 @@ rclcpp_components_register_node(${PROJECT_NAME}
 )
 
 
-find_package(OpenCV REQUIRED COMPONENTS highgui imgcodecs imgproc videoio)
+find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc videoio)
 ## Cmake : video_capturer
 
 set(VIDEO_CAPTURER video_capturer)

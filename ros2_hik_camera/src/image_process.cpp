@@ -7,7 +7,6 @@
 /// opencv
 #include <opencv2/core/mat.hpp>
 #include <opencv2/videoio.hpp>
-#include <opencv2/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 namespace image_process
