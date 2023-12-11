@@ -4,5 +4,10 @@
         "/opt/ros/foxy/setup.sh",
         "install/setup.sh"
     ],
-    "C_Cpp.default.compilerPath": "/usr/bin/g++-11"
+    "C_Cpp.default.compilerPath": "/usr/bin/clang++-11",
+    "C_Cpp.default.includePath": [
+        "${default}",
+        "/opt/ros/foxy/include/**",
+        "./**"
+    ]
 }

@@ -9,6 +9,9 @@
 #include <opencv2/videoio.hpp>
 #include <cv_bridge/cv_bridge.h>
 
+/// yolov8
+#include "yolov8_inference/inference.h"
+
 namespace image_process
 {
   class ImageProcessNode : public rclcpp::Node
@@ -58,7 +61,9 @@ namespace image_process
       std::lock_guard<std::mutex> lock(g_mutex);
       try
       {
-        frame_ = cv_bridge::toCvShare(msg, "bgr8")->image;
+        // ? toCvShare return a immutable image?
+        // frame_ = cv_bridge::toCvShare(msg, "bgr8")->image;
+        frame_ = cv_bridge::toCvCopy(msg, "bgr8:CV_8UC3")->image;
       }
       catch (const cv_bridge::Exception &e)
       {
@@ -67,6 +72,60 @@ namespace image_process
       }
     }
   };
+
+  class ImageProcessor
+  {
+  private:
+    static const double length_{126.5};
+    static const cv::Matx33d object_points_;
+
+    yolov8::Inference model_;
+    std::vector<yolov8::Detection> predict_result_;
+
+    static cv::Matx33d camera_matrix_;
+    static cv::Vec<double, 5>  distortion_matrix_;
+    
+    cv::Vec3d rvec_;
+    cv::Vec3d tvec_;
+
+    bool Determine4PointsOrder(std::vector<cv::Point2f> &image_points, std::vector<std::string> &classes, cv::Point2f *center_p = nullptr);
+    
+  public:
+    ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 480},
+                   const float &model_score_threshold = 0.45, const float &model_nms_threshold = 0.50);
+    ~ImageProcessor() = default;
+
+    inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
+    bool SolvePnP();
+    inline std::pair<cv::Vec3d, cv::Vec3d> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
+
+    cv::Point2f Object2Picture(const cv::Point3f &point);
+  };
+
+  const cv::Matx33d _tmp{1.0, 1.0, 0.0, 1.0, -1.0, 0.0, -1.0, -1.0, 0.0, -1.0, 1.0, 0.0};
+  const cv::Matx33d ImageProcessor::object_points_{ImageProcessor::length_ * _tmp};
+
+  bool ImageProcessor::Determine4PointsOrder(std::vector<cv::Point2f> &image_points, std::vector<std::string> &classes, cv::Point2f *center_p)
+  {
+      return false;
+  }
+
+  ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
+                                 const float &model_score_threshold, const float &model_nms_threshold)
+  {
+    model_.init(model_path, model_shape, model_score_threshold, model_nms_threshold);
+  }
+
+  bool ImageProcessor::SolvePnP()
+  {
+      return false;
+  }
+
+  cv::Point2f ImageProcessor::Object2Picture(const cv::Point3f &point)
+  {
+      return cv::Point2f();
+  }
+
 } // namespace image_process
 
 #include "rclcpp_components/register_node_macro.hpp"
