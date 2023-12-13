@@ -17,7 +17,6 @@ namespace image_process
   class ImageProcessor
   {
   private:
-    static const float length_;
     static const cv::Matx33f object_points_;
 
     std::vector<yolov8::Detection> predict_result_;
@@ -31,6 +30,7 @@ namespace image_process
     bool Determine4PointsOrder(std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center);
 
   public:
+    static const float length_;
     yolov8::Inference model_;
 
     ImageProcessor() = default;
@@ -54,12 +54,16 @@ namespace image_process
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
 
+      // TODO use "model_path" as parameter in cmd line
       const std::string model_path = "/home/rmv/rm_eng_ws/src/best.onnx";
       img_processor_.model_.init(model_path, cv::Size(640, 480));
 
       image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
                                                                "raw", qos);
+
+      processed_image_pub_ = image_transport::create_publisher(this, "processed_image", qos);
+
       process_thread_ = std::thread{[this]() -> void
                                     {
                                       while (rclcpp::ok())
@@ -68,13 +72,16 @@ namespace image_process
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
 
-                                          cv::Mat frame = frame_queue_.front();
+                                          cv_bridge::CvImageConstPtr frame = frame_queue_.front();
                                           frame_queue_.pop();
-                                          // ? unlock mutex? delay?
+                                          // TODO ? unlock mutex? delay?
 
-                                          img_processor_.ModelPredict(frame);
+                                          img_processor_.ModelPredict(frame->image);
                                           img_processor_.SolvePnP();
 
+                                          AddSolvePnPResult(frame->image);
+
+                                          processed_image_pub_.publish(frame->toImageMsg());
 
                                           RCLCPP_INFO(this->get_logger(), "Processing!");
                                         }
@@ -93,8 +100,10 @@ namespace image_process
 
   private:
     image_transport::CameraSubscriber image_sub_;
+    image_transport::Publisher processed_image_pub_;
 
-    std::queue<cv::Mat> frame_queue_;
+    std::queue<cv_bridge::CvImageConstPtr> frame_queue_;
+    // std::queue<cv_bridge::CvImagePtr> frame_queue_;
     sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_;
 
     std::thread process_thread_;
@@ -108,15 +117,34 @@ namespace image_process
       std::lock_guard<std::mutex> lock(g_mutex);
       try
       {
-        // ? toCvShare return a immutable image?
+        // TODO ? toCvShare return a immutable image?
         // frame_ = cv_bridge::toCvShare(msg, "bgr8")->image;
-        frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8:CV_8UC3")->image);
+        frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8:CV_8UC3"));
         // frame_queue_.push(cv_bridge::toCvCopy(msg, "bgr8:CV_8UC3")->image);
       }
       catch (const cv_bridge::Exception &e)
       {
         auto logger = rclcpp::get_logger("ImageProcess Error");
         RCLCPP_ERROR(logger, "Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+      }
+    }
+
+    void AddSolvePnPResult(cv::Mat img)
+    {
+      cv::Point3f real_center{};
+      std::vector<cv::Point3f> xyz_points;
+      for (unsigned int i = 0; i < 3; ++i)
+      {
+        cv::Vec3f tmp{};
+        tmp(i) = img_processor_.length_;
+        xyz_points.emplace_back(std::move(tmp));
+      }
+
+      cv::Point2i real_center_pic = img_processor_.Object2Picture(real_center);
+      for (auto point: xyz_points)
+      {
+        cv::Point2i point_pic = img_processor_.Object2Picture(point);
+        cv::arrowedLine(img, real_center_pic, point_pic, cv::Scalar(255, 0, 255), 2);
       }
     }
   };
