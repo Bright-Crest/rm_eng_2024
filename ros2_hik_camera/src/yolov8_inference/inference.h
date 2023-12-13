@@ -54,9 +54,10 @@ namespace yolov8
     public:
         // do not worry about the number of key points because it is derived automatically
         // cv::Size: (width, height)
-        Inference(const std::string &onnxModelPath = "*.onnx", const cv::Size &modelInputShape = {640, 640},
+        Inference() = default;
+        Inference(const std::string &onnxModelPath, const cv::Size &modelInputShape = {640, 640},
                   const float &modelScoreThreshold = 0.45f, const float &modelNMSThreshold = 0.50f, const std::string &classesTxtFile = "");
-        void init(const std::string &onnxModelPath = "*.onnx", const cv::Size &modelInputShape = {640, 640},
+        void init(const std::string &onnxModelPath, const cv::Size &modelInputShape = {640, 640},
                   const float &modelScoreThreshold = 0.45f, const float &modelNMSThreshold = 0.50f, const std::string &classesTxtFile = "");
         // input: image to be inference;
         // detections: output results

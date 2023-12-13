@@ -52,7 +52,7 @@ rclcpp_components_register_node(${PROJECT_NAME}
 )
 
 set(CMAKE_PREFIX_PATH ~/.local)
-find_package(OpenCV 4.8 REQUIRED COMPONENTS imgcodecs imgproc videoio)
+find_package(OpenCV 4.8 REQUIRED)
 
 ## Cmake : video_capturer
 set(VIDEO_CAPTURER video_capturer)
