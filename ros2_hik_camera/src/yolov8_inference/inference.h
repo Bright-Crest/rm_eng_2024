@@ -20,7 +20,7 @@ namespace yolov8
     struct Detection
     {
         std::string class_name{};
-        float confidence{0.0};
+        float confidence{0.0f};
         cv::Rect box{};
         std::vector<cv::Point> keypoints{};
 
@@ -55,9 +55,9 @@ namespace yolov8
         // do not worry about the number of key points because it is derived automatically
         // cv::Size: (width, height)
         Inference(const std::string &onnxModelPath = "*.onnx", const cv::Size &modelInputShape = {640, 640},
-                  const float &modelScoreThreshold = 0.45, const float &modelNMSThreshold = 0.50, const std::string &classesTxtFile = "");
+                  const float &modelScoreThreshold = 0.45f, const float &modelNMSThreshold = 0.50f, const std::string &classesTxtFile = "");
         void init(const std::string &onnxModelPath = "*.onnx", const cv::Size &modelInputShape = {640, 640},
-                  const float &modelScoreThreshold = 0.45, const float &modelNMSThreshold = 0.50, const std::string &classesTxtFile = "");
+                  const float &modelScoreThreshold = 0.45f, const float &modelNMSThreshold = 0.50f, const std::string &classesTxtFile = "");
         // input: image to be inference;
         // detections: output results
         void runInference(const cv::Mat &input, std::vector<Detection> &detections);
@@ -74,9 +74,9 @@ namespace yolov8
 
         cv::Size2f model_shape_{};
 
-        float model_score_threshold_{0.45};
+        float model_score_threshold_{0.45f};
         // nms: non_max_suppression
-        float model_nms_threshold_{0.50};
+        float model_nms_threshold_{0.50f};
 
         bool is_letterbox_for_square_{true};
 

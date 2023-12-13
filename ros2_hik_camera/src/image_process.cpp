@@ -14,6 +14,38 @@
 
 namespace image_process
 {
+  class ImageProcessor
+  {
+  private:
+    static const float length_;
+    static const cv::Matx33f object_points_;
+
+    std::vector<yolov8::Detection> predict_result_;
+
+    cv::Matx33f camera_matrix_{1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f};
+    cv::Vec<float, 5> distortion_matrix_{};
+
+    cv::Vec3f rvec_;
+    cv::Vec3f tvec_;
+
+    bool Determine4PointsOrder(std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center);
+
+  public:
+    yolov8::Inference model_;
+
+    ImageProcessor() = default;
+    ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 480},
+                   const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f);
+    ~ImageProcessor() = default;
+
+    void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
+    inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
+    bool SolvePnP();
+    inline std::pair<cv::Vec3f, cv::Vec3f> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
+
+    cv::Point2f Object2Picture(const cv::Point3f &point);
+  };
+
   class ImageProcessNode : public rclcpp::Node
   {
   public:
@@ -21,6 +53,10 @@ namespace image_process
     {
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
+
+      const std::string model_path = "/home/rmv/rm_eng_ws/src/best.onnx";
+      img_processor_.model_.init(model_path, cv::Size(640, 480));
+
       image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
                                                                "raw", qos);
@@ -28,12 +64,18 @@ namespace image_process
                                     {
                                       while (rclcpp::ok())
                                       {
-                                        if (!frame_.empty())
+                                        if (!frame_queue_.empty())
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
-                                          /*
-                                            add your process code here
-                                          */
+
+                                          cv::Mat frame = frame_queue_.front();
+                                          frame_queue_.pop();
+                                          // ? unlock mutex? delay?
+
+                                          img_processor_.ModelPredict(frame);
+                                          img_processor_.SolvePnP();
+
+
                                           RCLCPP_INFO(this->get_logger(), "Processing!");
                                         }
                                       }
@@ -51,9 +93,14 @@ namespace image_process
 
   private:
     image_transport::CameraSubscriber image_sub_;
-    cv::Mat frame_;
+
+    std::queue<cv::Mat> frame_queue_;
+    sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_;
+
     std::thread process_thread_;
     std::mutex g_mutex;
+
+    ImageProcessor img_processor_;
 
     void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &msg,
                        const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camara_info)
@@ -63,7 +110,8 @@ namespace image_process
       {
         // ? toCvShare return a immutable image?
         // frame_ = cv_bridge::toCvShare(msg, "bgr8")->image;
-        frame_ = cv_bridge::toCvCopy(msg, "bgr8:CV_8UC3")->image;
+        frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8:CV_8UC3")->image);
+        // frame_queue_.push(cv_bridge::toCvCopy(msg, "bgr8:CV_8UC3")->image);
       }
       catch (const cv_bridge::Exception &e)
       {
@@ -73,41 +121,91 @@ namespace image_process
     }
   };
 
-  class ImageProcessor
+  const float ImageProcessor::length_ = 126.5;
+  const cv::Matx33f _tmp{1.0f, 1.0f, 0.0f, 1.0f, -1.0f, 0.0f, -1.0f, -1.0f, 0.0f, -1.0f, 1.0f, 0.0f};
+  const cv::Matx33f ImageProcessor::object_points_{ImageProcessor::length_ * _tmp};
+
+  bool ImageProcessor::Determine4PointsOrder(std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center)
   {
-  private:
-    static const double length_{126.5};
-    static const cv::Matx33d object_points_;
-
-    yolov8::Inference model_;
-    std::vector<yolov8::Detection> predict_result_;
-
-    static cv::Matx33d camera_matrix_;
-    static cv::Vec<double, 5>  distortion_matrix_;
-    
-    cv::Vec3d rvec_;
-    cv::Vec3d tvec_;
-
-    bool Determine4PointsOrder(std::vector<cv::Point2f> &image_points, std::vector<std::string> &classes, cv::Point2f *center_p = nullptr);
-    
-  public:
-    ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 480},
-                   const float &model_score_threshold = 0.45, const float &model_nms_threshold = 0.50);
-    ~ImageProcessor() = default;
-
-    inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
-    bool SolvePnP();
-    inline std::pair<cv::Vec3d, cv::Vec3d> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
-
-    cv::Point2f Object2Picture(const cv::Point3f &point);
-  };
-
-  const cv::Matx33d _tmp{1.0, 1.0, 0.0, 1.0, -1.0, 0.0, -1.0, -1.0, 0.0, -1.0, 1.0, 0.0};
-  const cv::Matx33d ImageProcessor::object_points_{ImageProcessor::length_ * _tmp};
-
-  bool ImageProcessor::Determine4PointsOrder(std::vector<cv::Point2f> &image_points, std::vector<std::string> &classes, cv::Point2f *center_p)
-  {
+    // preprocess
+    if (points.size() != 4)
       return false;
+    if (classes.size() != 4)
+      return false;
+
+    std::set<std::string> classes_set{};
+    for (auto cls : classes)
+      classes_set.emplace(cls);
+
+    if (classes_set.size() != 2)
+    {
+      std::cerr << "Warning: ImageProcessor::Determine4PointsOrder(): more or less than 2 classes\n";
+      return false;
+    }
+
+    int special_idx = 0;
+    std::string special_class{};
+
+    // get the special index
+    int tmp_count = std::count(classes.begin(), classes.end(), *classes_set.begin());
+    switch (tmp_count)
+    {
+    case 1:
+      special_class = *classes_set.begin();
+      break;
+    case 3:
+      special_class = *classes_set.rbegin();
+      break;
+    default:
+      std::cout << "Warning: ImageProcessor::Determine4PointsOrder(): more or less than one key point is special class\n";
+      return false;
+    }
+    for (unsigned int i = 0; i < classes.size(); i++)
+    {
+      if (classes[i] == special_class)
+      {
+        special_idx = i;
+        break;
+      }
+    }
+
+    // compute center
+    center.x = 0.0;
+    center.y = 0.0;
+    for (auto point : points)
+    {
+      center.x += point.x;
+      center.y += point.y;
+    }
+    center.x /= points.size();
+    center.y /= points.size();
+
+    // determine order
+    std::vector<int> order{};
+    std::vector<std::pair<float, int>> angles_and_indices{}; 
+    for (unsigned int i = 0; i < points.size(); ++i)
+    {
+      float angle = std::atan2(points[i].y - center.y, points[i].x - center.x);
+      angles_and_indices.emplace_back(std::make_pair(angle, i));
+    }
+
+    std::sort(angles_and_indices.begin(), angles_and_indices.end());
+    for (auto i : angles_and_indices)
+      order.emplace_back(i.second);
+
+    auto tmp_it = std::find(order.begin(), order.end(), special_idx);
+    std::rotate(order.begin(), tmp_it, order.end()); 
+    
+    // apply order to points
+    std::vector<cv::Point2f> ordered_points{};
+    ordered_points.resize(points.size());
+    for (unsigned int i = 0; i < points.size(); ++i)
+    {
+      ordered_points[i] = std::move(points[order[i]]);
+    }
+    points = std::move(ordered_points);
+  
+    return true;
   }
 
   ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
@@ -116,14 +214,80 @@ namespace image_process
     model_.init(model_path, model_shape, model_score_threshold, model_nms_threshold);
   }
 
+  void ImageProcessor::GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info)
+  {
+    for (unsigned int i = 0; i < camera_info->k.size(); ++i)
+    {
+      camera_matrix_ << camera_info->k[i];
+    }
+
+    if (camera_info->d.size() != 5)
+    {
+      std::cerr << "Error: ImageProcessor::GetCameraInfo(): the distortion matrix size is not 5\n";
+      throw std::exception();
+    }
+
+    for (unsigned int i = 0; i < camera_info->d.size(); ++i)
+    {
+      distortion_matrix_ << camera_info->d[i];
+    }
+  }
+
   bool ImageProcessor::SolvePnP()
   {
+    if (predict_result_.size() != 4)
       return false;
+
+    std::vector<cv::Point2f> image_points{};
+    std::vector<std::string> classes{};
+    cv::Point2f center{};
+
+    for (auto detection : predict_result_)
+    {
+      // 3: innermost points
+      image_points.emplace_back(detection.keypoints[3]);
+      classes.emplace_back(detection.class_name);
+    }
+
+    if (!Determine4PointsOrder(image_points, classes, center))
+      return false;
+
+    if (!cv::solvePnP(object_points_, image_points, camera_matrix_, distortion_matrix_, rvec_, tvec_))
+      return false;
+    
+    return true;
   }
 
   cv::Point2f ImageProcessor::Object2Picture(const cv::Point3f &point)
   {
-      return cv::Point2f();
+    cv::Matx33f rotation_matrix;
+    cv::Rodrigues(rvec_, rotation_matrix);
+
+    // object coordinate system => camera coordinate system
+    cv::Vec3f camera_point_3d = rotation_matrix * point + cv::Point3f(tvec_);
+
+    if (camera_point_3d[2] == 0)
+      return cv::Point2f{};
+
+    // normalized x and y
+    float x = camera_point_3d[0] / camera_point_3d[2];
+    float y = camera_point_3d[1] / camera_point_3d[2];
+    // r^2
+    float r_2 = x * x + y * y;
+
+    const float &k1 = distortion_matrix_[0];
+    const float &k2 = distortion_matrix_[1];
+    const float &k3 = distortion_matrix_[4];
+    const float &p1 = distortion_matrix_[2];
+    const float &p2 = distortion_matrix_[3];
+    // distorted x and y
+    float distorted_x = x * (1 + k1 * r_2 + k2 * r_2 * r_2 + k3 * std::pow(r_2, 3)) + 2 * p1 * x * y + p2 * (r_2 + 2 * x * x);
+    float distorted_y = y * (1 + k1 * r_2 + k2 * r_2 * r_2 + k3 * std::pow(r_2, 3)) + 2 * p2 * x * y + p1 * (r_2 + 2 * y * y);
+    cv::Point3f distorted_point_3d{std::move(distorted_x), std::move(distorted_y), 1};
+    // x and y in the picture
+    cv::Point3f tmp = camera_matrix_ * distorted_point_3d;
+
+    return cv::Point2f{std::move(tmp.x), std::move(tmp.y)};
   }
 
 } // namespace image_process

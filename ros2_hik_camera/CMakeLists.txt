@@ -51,10 +51,10 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
+set(CMAKE_PREFIX_PATH ~/.local)
+find_package(OpenCV 4.8 REQUIRED COMPONENTS imgcodecs imgproc videoio)
 
-find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc videoio)
 ## Cmake : video_capturer
-
 set(VIDEO_CAPTURER video_capturer)
 ament_auto_add_library(${VIDEO_CAPTURER} SHARED 
   src/video_capturer.cpp
@@ -71,6 +71,7 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
 set(IMAGE_PROCESS image_process)
 ament_auto_add_library(${IMAGE_PROCESS} SHARED 
   src/image_process.cpp
+  src/yolov8_inference/inference.cpp
 )
 target_link_libraries(${IMAGE_PROCESS}
   opencv_highgui  
