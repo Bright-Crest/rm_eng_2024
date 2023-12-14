@@ -51,7 +51,9 @@ rclcpp_components_register_node(${PROJECT_NAME}
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
+# only for setting the personal OpenCV 4.8 path
 set(CMAKE_PREFIX_PATH ~/.local)
+
 find_package(OpenCV 4.8 REQUIRED)
 
 ## Cmake : video_capturer

@@ -57,6 +57,7 @@ namespace image_process
     void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
     inline void ModelPredict(cv::Mat image) { model_.runInference(image, predict_result_); }
     // call after calling ModelPrdeict()
+    // modify image_points_
     bool SolvePnP();
     // call after calling SolvePnP()
     inline std::pair<cv::Vec3f, cv::Vec3f> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
@@ -106,6 +107,7 @@ namespace image_process
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
+                                            cv::imwrite("/home/rmv/Pictures/1.jpg", frame->image);
                                           }
 
                                           processed_image_pub_.publish(frame->toImageMsg());
@@ -300,11 +302,12 @@ namespace image_process
     std::vector<std::string> classes{};
     cv::Point2f center{};
 
+    image_points_.clear();
     for (auto &detection : predict_result_)
     {
       // for developers: check the index of the innermost point whenever changing a model
       // 1: innermost point
-      image_points_.emplace_back(detection.keypoints[1]);
+      image_points_.emplace_back(detection.keypoints[3]);
       classes.emplace_back(detection.class_name);
     }
 

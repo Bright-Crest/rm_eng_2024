@@ -101,6 +101,7 @@ void yolov8::Inference::runInference(const cv::Mat &input, std::vector<Detection
     // for each Inference compute once
     static const int kKeyPointsNum = (dimensions - BOX_NUM - classes_.size()) / 2;
 
+    // Note: must clear
     detections.clear();
     for (unsigned int i = 0; i < nms_result.size(); ++i)
     {
