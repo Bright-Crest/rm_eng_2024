@@ -64,8 +64,10 @@ namespace image_process
 
     /// @brief bring a 3d point from the object coordinate system to the picture(2d point)
     cv::Point2f Object2Picture(const cv::Point3f &point);
+
     /// @brief for testing yolov8 model; draw boxes and keypoints
     void AddPredictResult(cv::Mat img, bool add_boxes = true, bool add_keypoints = true);
+
     /// @brief for testing SolvePnP(), call only when SolvePnP() returns true; draw image_points_ and their order
     void AddImagePoints(cv::Mat img, bool add_order = true, bool add_points = true);
   };
@@ -79,7 +81,7 @@ namespace image_process
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
 
       // TODO use "model_path" as parameter in cmd line
-      const std::string model_path = "/home/rmv/rm_eng_ws/src/best.onnx";
+      const std::string model_path = "/home/pan/colcon_ws/src/rm_eng_2024/best.onnx";
       img_processor_.model_.init(model_path, cv::Size(640, 640));
 
       image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
@@ -96,26 +98,25 @@ namespace image_process
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
 
-                                          cv_bridge::CvImageConstPtr frame = frame_queue_.front();
+                                          cv_bridge::CvImageConstPtr frame(frame_queue_.front());
                                           frame_queue_.pop();
-                                          // TODO ? unlock mutex? delay?
+                                          //  TODO ? unlock mutex? delay?
 
                                           img_processor_.ModelPredict(frame->image);
-                                          img_processor_.AddPredictResult(frame->image, true, false);
+                                          img_processor_.AddPredictResult(frame->image, true, true);
 
                                           if (img_processor_.SolvePnP())
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
-                                            cv::imwrite("/home/rmv/Pictures/1.jpg", frame->image);
+                                            //// cv::imwrite("/home/rmv/Pictures/1.jpg", frame->image);
                                           }
 
                                           processed_image_pub_.publish(frame->toImageMsg());
-
-                                          RCLCPP_INFO(this->get_logger(), "Processing!");
                                         }
                                       }
                                     }};
+
       RCLCPP_INFO(this->get_logger(), "Starting Image Process!");
     }
 
@@ -124,7 +125,7 @@ namespace image_process
       image_sub_.shutdown();
       if (process_thread_.joinable())
         process_thread_.join();
-      RCLCPP_INFO(this->get_logger(), "ImageProcessNode deestroyed!");
+      RCLCPP_INFO(this->get_logger(), "ImageProcessNode destroyed!");
     }
 
   private:
@@ -148,6 +149,7 @@ namespace image_process
       {
         // TODO ? toCvShare return a immutable image?
         frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8"));
+
         // frame_queue_.push(cv_bridge::toCvCopy(msg, "bgr8")->image);
       }
       catch (const cv_bridge::Exception &e)
