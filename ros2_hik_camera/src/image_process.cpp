@@ -3,7 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
 #include <sensor_msgs/msg/image.hpp>
-
+#include <ament_index_cpp/get_package_share_directory.hpp>
 /// opencv
 #include <opencv2/core/mat.hpp>
 #include <opencv2/videoio.hpp>
@@ -56,7 +56,7 @@ namespace image_process
 
     void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
 
-    inline void ModelPredict(cv::Mat image) { model_.runInference(image, predict_result_); }
+    inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
     // call after calling ModelPrdeict()
     // modify image_points_
     bool SolvePnP();
@@ -81,8 +81,10 @@ namespace image_process
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
 
-      // TODO use "model_path" as parameter in cmd line
-      const std::string model_path = "/home/pan/colcon_ws/src/rm_eng_2024/best.onnx";
+      // may throw ament_index_cpp::PackageNotFoundError exception
+      std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
+      const std::string model_path = package_share_directory + "/model/best.onnx";
+
       img_processor_.model_.init(model_path, cv::Size(640, 640));
 
       image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
