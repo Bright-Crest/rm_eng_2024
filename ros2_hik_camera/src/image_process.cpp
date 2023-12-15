@@ -107,7 +107,6 @@ namespace image_process
                                           // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
                                           // largely than out-queue operation.
                                           // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
-
                                           img_processor_.ModelPredict(frame->image);
                                           img_processor_.AddPredictResult(frame->image, true, true);
 

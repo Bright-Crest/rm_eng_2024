@@ -17,22 +17,43 @@ namespace video_capturer
   public:
     explicit VideoCapturerNode(const rclcpp::NodeOptions &options) : Node("video_capturer", options)
     {
-      /// The prefix is our package share directory
-      /// ${your_colcon_ws{/install/${Package_name}/share/
-      std::string video_url =
-          this->declare_parameter("video_url", "");
+      std::string video_url = this->declare_parameter("video_url", "");
+
       if (video_url.empty())
       {
         RCLCPP_ERROR(this->get_logger(), "Video URL Error");
         return;
       }
-      cv_cap_ = cv::VideoCapture(video_url);
-      if (!cv_cap_.isOpened())
+
+      // get suffix name
+      bool is_video = true;
+      cv::Mat frame_temp;
+      std::string suffix = video_url.substr(video_url.find_last_of('.') + 1);
+      if (suffix != "mp4")
+        is_video = false;
+
+      if (is_video)
       {
-        RCLCPP_ERROR(this->get_logger(), "Video Opening Error");
-        return;
+        cv_cap_ = cv::VideoCapture(video_url);
+        if (!cv_cap_.isOpened())
+        {
+          RCLCPP_ERROR(this->get_logger(), "Video Opening Error");
+          return;
+        }
+        frame_cnt_ = cv_cap_.get(cv::CAP_PROP_FRAME_COUNT);
+        RCLCPP_ERROR(this->get_logger(), "Video Opening Success");
       }
-      frame_cnt_ = cv_cap_.get(cv::CAP_PROP_FRAME_COUNT);
+      else
+      {
+        try
+        {
+          frame_temp = cv::imread(video_url);
+        }
+        catch (...)
+        {
+          RCLCPP_ERROR(this->get_logger(), "Incorrect photo file suffix");
+        }
+      }
 
       RCLCPP_INFO(this->get_logger(), "Starting VideoCapturerNode!");
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
@@ -47,15 +68,16 @@ namespace video_capturer
         cv::rectangle(magic_mat, magic_rec, cv::Scalar(255, 255, 255), 2);
       }
 
-      capture_thread_ = std::thread{[this]() -> void
+      capture_thread_ = std::thread{[this, is_video, frame_temp]() -> void
                                     {
-                                      cv::Mat frame;
                                       RCLCPP_INFO(this->get_logger(), "Publishing video!");
                                       std_msgs::msg::Header hdr;
+                                      cv::Mat frame = frame_temp;
 
                                       while (rclcpp::ok())
                                       {
-                                        cv_cap_.read(frame);
+                                        if (is_video)
+                                          cv_cap_.read(frame);
                                         if (!frame.empty())
                                         {
                                           image_msg_ptr_ = cv_bridge::CvImage(hdr, "bgr8", frame).toImageMsg();
