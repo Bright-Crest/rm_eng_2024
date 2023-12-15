@@ -42,9 +42,9 @@ namespace video_capturer
       // Magic Code: if you delete this, then it is impossible to open video_capturer node
       // before image process node.
       {
-        cv::Mat mat(cv::Size(20, 20), CV_8UC1, 255);
-        cv::Rect rec1(10, 10, 5, 5);
-        cv::rectangle(mat, rec1, cv::Scalar(255, 255, 255), 2);
+        cv::Mat magic_mat(cv::Size(20, 20), CV_8UC1, 255);
+        cv::Rect magic_rec(10, 10, 5, 5);
+        cv::rectangle(magic_mat, magic_rec, cv::Scalar(255, 255, 255), 2);
       }
 
       capture_thread_ = std::thread{[this]() -> void
@@ -60,7 +60,7 @@ namespace video_capturer
                                         {
                                           image_msg_ptr_ = cv_bridge::CvImage(hdr, "bgr8", frame).toImageMsg();
                                           video_pub_.publish(*image_msg_ptr_, camera_info_msg_);
-                                          cv::waitKey(10);
+                                          cv::waitKey(20);
                                         }
                                         else
                                         {

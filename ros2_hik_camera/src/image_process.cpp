@@ -55,6 +55,7 @@ namespace image_process
     ~ImageProcessor() = default;
 
     void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
+
     inline void ModelPredict(cv::Mat image) { model_.runInference(image, predict_result_); }
     // call after calling ModelPrdeict()
     // modify image_points_
@@ -94,13 +95,16 @@ namespace image_process
                                     {
                                       while (rclcpp::ok())
                                       {
+                                        cv_bridge::CvImageConstPtr frame{};
                                         if (!frame_queue_.empty())
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
-
-                                          cv_bridge::CvImageConstPtr frame(frame_queue_.front());
+                                          frame = std::move(frame_queue_.front());
                                           frame_queue_.pop();
-                                          //  TODO ? unlock mutex? delay?
+
+                                          // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
+                                          // largely than out-queue operation.
+                                          // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
 
                                           img_processor_.ModelPredict(frame->image);
                                           img_processor_.AddPredictResult(frame->image, true, true);
@@ -109,9 +113,7 @@ namespace image_process
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
-                                            //// cv::imwrite("/home/rmv/Pictures/1.jpg", frame->image);
                                           }
-
                                           processed_image_pub_.publish(frame->toImageMsg());
                                         }
                                       }
@@ -123,6 +125,7 @@ namespace image_process
     ~ImageProcessNode()
     {
       image_sub_.shutdown();
+      processed_image_pub_.shutdown();
       if (process_thread_.joinable())
         process_thread_.join();
       RCLCPP_INFO(this->get_logger(), "ImageProcessNode destroyed!");
@@ -133,7 +136,6 @@ namespace image_process
     image_transport::Publisher processed_image_pub_;
 
     std::queue<cv_bridge::CvImageConstPtr> frame_queue_;
-    // std::queue<cv_bridge::CvImagePtr> frame_queue_;
     sensor_msgs::msg::CameraInfo::ConstSharedPtr camera_info_;
 
     std::thread process_thread_;
@@ -147,10 +149,7 @@ namespace image_process
       std::lock_guard<std::mutex> lock(g_mutex);
       try
       {
-        // TODO ? toCvShare return a immutable image?
         frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8"));
-
-        // frame_queue_.push(cv_bridge::toCvCopy(msg, "bgr8")->image);
       }
       catch (const cv_bridge::Exception &e)
       {
