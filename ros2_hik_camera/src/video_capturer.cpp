@@ -39,6 +39,14 @@ namespace video_capturer
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
       video_pub_ = image_transport::create_camera_publisher(this, "image_raw", qos);
 
+      // Magic Code: if you delete this, then it is impossible to open video_capturer node
+      // before image process node.
+      {
+        cv::Mat mat(cv::Size(20, 20), CV_8UC1, 255);
+        cv::Rect rec1(10, 10, 5, 5);
+        cv::rectangle(mat, rec1, cv::Scalar(255, 255, 255), 2);
+      }
+
       capture_thread_ = std::thread{[this]() -> void
                                     {
                                       cv::Mat frame;
