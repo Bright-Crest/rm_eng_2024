@@ -28,7 +28,7 @@ namespace image_process
 
     cv::Matx33f camera_matrix_{2.8782842692538566e+02, 0., 2.8926852144861482e+02, 0.,
                                2.8780772641312882e+02, 2.4934996600204786e+02, 0., 0., 1.};
-    cv::Vec<float, 5> distortion_matrix_{-6.8732455025061909e-02, 1.7584447291315711e-01,
+    cv::Vec<float, 5> distortion_coefficients_{-6.8732455025061909e-02, 1.7584447291315711e-01,
                                          1.0621261625698190e-03, -2.1403059368057149e-03,
                                          -1.3665333157303680e-01};
 
@@ -292,7 +292,7 @@ namespace image_process
 
     for (unsigned int i = 0; i < camera_info->d.size(); ++i)
     {
-      distortion_matrix_ << camera_info->d[i];
+      distortion_coefficients_ << camera_info->d[i];
     }
   }
 
@@ -316,7 +316,7 @@ namespace image_process
     if (!Determine4PointsOrder(image_points_, classes, center))
       return false;
 
-    if (!cv::solvePnP(object_points_, image_points_, camera_matrix_, distortion_matrix_, rvec_, tvec_))
+    if (!cv::solvePnP(object_points_, image_points_, camera_matrix_, distortion_coefficients_, rvec_, tvec_))
       return false;
 
     return true;
@@ -339,11 +339,11 @@ namespace image_process
     // r^2
     float r_2 = x * x + y * y;
 
-    const float &k1 = distortion_matrix_[0];
-    const float &k2 = distortion_matrix_[1];
-    const float &k3 = distortion_matrix_[4];
-    const float &p1 = distortion_matrix_[2];
-    const float &p2 = distortion_matrix_[3];
+    const float &k1 = distortion_coefficients_[0];
+    const float &k2 = distortion_coefficients_[1];
+    const float &k3 = distortion_coefficients_[4];
+    const float &p1 = distortion_coefficients_[2];
+    const float &p2 = distortion_coefficients_[3];
     // distorted x and y
     float distorted_x = x * (1 + k1 * r_2 + k2 * r_2 * r_2 + k3 * std::pow(r_2, 3)) + 2 * p1 * x * y + p2 * (r_2 + 2 * x * x);
     float distorted_y = y * (1 + k1 * r_2 + k2 * r_2 * r_2 + k3 * std::pow(r_2, 3)) + 2 * p2 * x * y + p1 * (r_2 + 2 * y * y);
