@@ -118,9 +118,9 @@ void yolov8::Inference::runInference(const cv::Mat &input, std::vector<Detection
         float *kp_ptr = data_ptr + BOX_NUM + classes_.size();
         for (int i = 0; i < kKeyPointsNum; ++i)
         {
-            int x = std::round(kp_ptr[i * 2] * x_factor);
-            int y = std::round(kp_ptr[i * 2 + 1] * y_factor);
-            result.keypoints.emplace_back(cv::Point{x, y});
+            float x = kp_ptr[i * 2] * x_factor;
+            float y = kp_ptr[i * 2 + 1] * y_factor;
+            result.keypoints.emplace_back(cv::Point2f{x, y});
         }
 
         detections.emplace_back(std::move(result));

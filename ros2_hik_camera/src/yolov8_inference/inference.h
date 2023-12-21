@@ -22,7 +22,7 @@ namespace yolov8
         std::string class_name{};
         float confidence{0.0f};
         cv::Rect box{};
-        std::vector<cv::Point> keypoints{};
+        std::vector<cv::Point2f> keypoints{};
 
         Detection() = default;
         Detection(const Detection &) = default;
