@@ -1,3 +1,6 @@
+// inference.cpp
+// used for 1 object and 12 key points
+
 #include "inference.h"
 
 yolov8::Inference::Inference(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold,

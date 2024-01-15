@@ -1,3 +1,6 @@
+// inference.h
+// used for 1 object and 12 points
+
 #ifndef INFERENCE_H
 #define INFERENCE_H
 
@@ -12,7 +15,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/dnn.hpp>
 
-// a [x,y,w,h] box takes 4 dimensions
+// A [x,y,w,h] box takes 4 dimensions
 #define BOX_NUM 4
 
 namespace yolov8
