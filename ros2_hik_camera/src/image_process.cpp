@@ -18,8 +18,8 @@
 /// yolov8
 #include "yolov8_inference/inference.h"
 
-#define LEN_A   137.5f
-#define LEN_B   87.5f
+#define LEN_A 137.5f
+#define LEN_B 87.5f
 
 namespace image_process
 {
@@ -112,7 +112,8 @@ namespace image_process
                                         if (!frame_queue_.empty())
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
-                                          frame = std::move(frame_queue_.front());
+                                          // only use the newest frame
+                                          frame = std::move(frame_queue_.back());
                                           frame_queue_.pop();
 
                                           // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
@@ -122,12 +123,14 @@ namespace image_process
                                           img_processor_.ModelPredict(frame->image);
                                           img_processor_.AddPredictResult(frame->image, true, false);
 
-                                          if (img_processor_.SolvePnP(4))
+                                          if (img_processor_.SolvePnP(12))
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
                                           }
                                           processed_image_pub_.publish(frame->toImageMsg());
+                                          // flush the frame_queue_, not efficient
+                                          frame_queue_ = {};
                                         }
                                       }
                                     }};
@@ -193,10 +196,7 @@ namespace image_process
   };
 
   const std::vector<cv::Point3f> ImageProcessor::object_points_{
-    {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, 
-    {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, 
-    {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, 
-    {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
+      {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
 
   /// @details check classes and then take the special point(with 2 gaps) as the first and push others counterclockwise
   bool ImageProcessor::Determine4PointsOrder(const std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center, std::vector<int> &order)
@@ -270,8 +270,8 @@ namespace image_process
 
     // counterclockwise
     std::sort(angles_and_indices.begin(), angles_and_indices.end(),
-      [](const std::pair<float, int> &a, const std::pair<float, int> &b) -> bool { return a.first >= b.first; }
-      );
+              [](const std::pair<float, int> &a, const std::pair<float, int> &b) -> bool
+              { return a.first >= b.first; });
 
     for (auto &i : angles_and_indices)
       order.emplace_back(i.second);
@@ -364,6 +364,8 @@ namespace image_process
     cv::Matx33f rotation_matrix;
     cv::Rodrigues(rvec_, rotation_matrix);
 
+    // cv::Mat identity_matrix = cv::Mat::eye(3, 3, CV_64F);
+    // rotation_matrix = identity_matrix;
     // object coordinate system => camera coordinate system
     cv::Vec3f camera_point_3d = rotation_matrix * point + cv::Point3f(tvec_);
 
