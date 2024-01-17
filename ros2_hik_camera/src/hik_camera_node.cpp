@@ -33,7 +33,8 @@ namespace hik_camera
       MV_CC_CreateHandle(&camera_handle_, DeviceList.pDeviceInfo[0]);
 
       MV_CC_OpenDevice(camera_handle_);
-
+      MV_CC_SetTriggerMode(camera_handle_, MV_TRIGGER_MODE_OFF);
+      MV_CC_SetBrightness(camera_handle_, 100);
       // Get camera infomation
       MV_CC_GetImageInfo(camera_handle_, &img_info_);
       image_msg_.data.reserve(img_info_.nHeightMax * img_info_.nWidthMax * 3);
@@ -84,11 +85,14 @@ namespace hik_camera
                                         nRet = MV_CC_GetImageBuffer(camera_handle_, &OutFrame, 1000);
                                         if (MV_OK == nRet)
                                         {
-                                          ConvertParam_.pDstBuffer = image_msg_.data.data();
-                                          ConvertParam_.nDstBufferSize = image_msg_.data.size();
+                                          ConvertParam_.nWidth = OutFrame.stFrameInfo.nWidth;
+                                          ConvertParam_.nHeight = OutFrame.stFrameInfo.nHeight;
                                           ConvertParam_.pSrcData = OutFrame.pBufAddr;
                                           ConvertParam_.nSrcDataLen = OutFrame.stFrameInfo.nFrameLen;
                                           ConvertParam_.enSrcPixelType = OutFrame.stFrameInfo.enPixelType;
+                                          ConvertParam_.enDstPixelType = PixelType_Gvsp_RGB8_Packed;
+                                          ConvertParam_.pDstBuffer = image_msg_.data.data();
+                                          ConvertParam_.nDstBufferSize = OutFrame.stFrameInfo.nWidth * OutFrame.stFrameInfo.nHeight * 4 + 2048;
 
                                           MV_CC_ConvertPixelType(camera_handle_, &ConvertParam_);
 
