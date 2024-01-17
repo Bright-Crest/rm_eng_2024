@@ -1,5 +1,5 @@
 // inference.h
-// used for 1 object and 12 points
+// used for 2 object and 12 points
 
 #ifndef INFERENCE_H
 #define INFERENCE_H

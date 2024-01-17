@@ -1,5 +1,5 @@
 // inference.cpp
-// used for 1 object and 12 key points
+// used for 2 object and 12 key points
 
 #include "inference.h"
 

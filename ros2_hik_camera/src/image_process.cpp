@@ -1,5 +1,7 @@
-// image_process.cpp
-// used for 1 object and 12 key points
+// ABANDONDED
+// used for 2 objects and 12 key points whose order is specified
+// When the model is changed, the following functions must be carefully checked and changed:
+// ImageProcessor::SolvePnP()
 
 /// ros2
 #include <image_transport/image_transport.hpp>
@@ -16,8 +18,8 @@
 /// yolov8
 #include "yolov8_inference/inference.h"
 
-#define A 137.5f
-#define B 87.5f
+#define LEN_A   137.5f
+#define LEN_B   87.5f
 
 namespace image_process
 {
@@ -35,16 +37,26 @@ namespace image_process
 
     cv::Matx33f camera_matrix_{2.8782842692538566e+02, 0., 2.8926852144861482e+02, 0.,
                                2.8780772641312882e+02, 2.4934996600204786e+02, 0., 0., 1.};
-    cv::Vec<float, 5> distortion_coefficients_{-6.8732455025061909e-02, 1.7584447291315711e-01,
-                                         1.0621261625698190e-03, -2.1403059368057149e-03,
-                                         -1.3665333157303680e-01};
+    // cv::Vec<float, 5> distortion_coefficients_{-6.8732455025061909e-02, 1.7584447291315711e-01,
+    //                                      1.0621261625698190e-03, -2.1403059368057149e-03,
+    //                                      -1.3665333157303680e-01};
+    cv::Vec<float, 5> distortion_coefficients_{};
 
     // sovlePnP result
     cv::Vec3f rvec_;
     // sovlePnP result
     cv::Vec3f tvec_;
 
+    /// @brief called in SolvePnP(); determine the order of the four target points in the picture
+    /// @param points 4 key points generated from the model
+    /// @param classes the classes of the 4 key points
+    /// @param center output; the central point of the 4 key points
+    /// @param order output; the expected order of the 4 key points
+    /// @return is success
+    bool Determine4PointsOrder(const std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center, std::vector<int> &order);
+
   public:
+    // for object_points_
     yolov8::Inference model_;
 
     ImageProcessor() = default;
@@ -52,12 +64,13 @@ namespace image_process
                    const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f);
     ~ImageProcessor() = default;
 
+    // unused
     void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
 
     inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
     // call after calling ModelPrdeict()
     // modify image_points_
-    bool SolvePnP();
+    bool SolvePnP(int point_num);
     // call after calling SolvePnP()
     inline std::pair<cv::Vec3f, cv::Vec3f> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
 
@@ -107,9 +120,9 @@ namespace image_process
                                           // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
 
                                           img_processor_.ModelPredict(frame->image);
-                                          img_processor_.AddPredictResult(frame->image, true, true);
+                                          img_processor_.AddPredictResult(frame->image, true, false);
 
-                                          if (img_processor_.SolvePnP())
+                                          if (img_processor_.SolvePnP(4))
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
@@ -166,7 +179,7 @@ namespace image_process
       for (unsigned int i = 0; i < 3; ++i)
       {
         cv::Vec3f tmp{};
-        tmp(i) = A;
+        tmp(i) = LEN_A;
         xyz_points.emplace_back(std::move(tmp));
       }
 
@@ -180,10 +193,95 @@ namespace image_process
   };
 
   const std::vector<cv::Point3f> ImageProcessor::object_points_{
-    {A, B, 0.0f}, {A, A, 0.0f}, {B, A, 0.0f}, 
-    {-B, A, 0.0f}, {-A, A, 0.0f}, {-A, B, 0.0f}, 
-    {-A, -B, 0.0f}, {-A, -A, 0.0f}, {-B, -A, 0.0f}, 
-    {B, -A, 0.0f}, {A, -A, 0.0f}, {A, -B, 0.0f}};
+    {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, 
+    {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, 
+    {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, 
+    {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
+
+  /// @details check classes and then take the special point(with 2 gaps) as the first and push others counterclockwise
+  bool ImageProcessor::Determine4PointsOrder(const std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center, std::vector<int> &order)
+  {
+    // preprocess
+    if (points.size() != 4)
+      return false;
+    if (classes.size() != 4)
+      return false;
+
+    // check classes; expected one special point and 3 other points of the same class
+
+    // all class types
+    std::set<std::string> classes_set{};
+    for (const std::string &cls : classes)
+      classes_set.emplace(cls);
+
+    if (classes_set.size() != 2)
+    {
+      std::cerr << "Warning: ImageProcessor::Determine4PointsOrder(): more or less than 2 classes\n";
+      return false;
+    }
+
+    int special_idx = 0;
+    std::string special_class{};
+
+    // get the special index
+    int tmp_count = std::count(classes.begin(), classes.end(), *classes_set.begin());
+    switch (tmp_count)
+    {
+    case 1:
+      special_class = *classes_set.begin();
+      break;
+    case 3:
+      special_class = *classes_set.rbegin();
+      break;
+    default:
+      std::cout << "Warning: ImageProcessor::Determine4PointsOrder(): more or less than one key point is special class\n";
+      return false;
+    }
+    for (unsigned int i = 0; i < classes.size(); i++)
+    {
+      if (classes[i] == special_class)
+      {
+        special_idx = i;
+        break;
+      }
+    }
+
+    // compute center
+    center.x = 0.0f;
+    center.y = 0.0f;
+    for (auto &point : points)
+    {
+      center.x += point.x;
+      center.y += point.y;
+    }
+    center.x /= points.size();
+    center.y /= points.size();
+
+    // determine order of the points
+
+    // determine order by angles first
+    order.clear();
+    std::vector<std::pair<float, int>> angles_and_indices{};
+    for (unsigned int i = 0; i < points.size(); ++i)
+    {
+      float angle = std::atan2(points[i].y - center.y, points[i].x - center.x);
+      angles_and_indices.emplace_back(std::make_pair(angle, i));
+    }
+
+    // counterclockwise
+    std::sort(angles_and_indices.begin(), angles_and_indices.end(),
+      [](const std::pair<float, int> &a, const std::pair<float, int> &b) -> bool { return a.first >= b.first; }
+      );
+
+    for (auto &i : angles_and_indices)
+      order.emplace_back(i.second);
+
+    // determine final order by the special index
+    auto tmp_it = std::find(order.begin(), order.end(), special_idx);
+    std::rotate(order.begin(), tmp_it, order.end());
+
+    return true;
+  }
 
   ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
                                  const float &model_score_threshold, const float &model_nms_threshold)
@@ -210,18 +308,53 @@ namespace image_process
     }
   }
 
-  bool ImageProcessor::SolvePnP()
+  bool ImageProcessor::SolvePnP(int point_num)
   {
-    if (predict_result_.size() != 1)
-      return false;
-
-    cv::Point2f center{};
-
     image_points_.clear();
-    image_points_ = predict_result_[0].keypoints;
 
-    if (!cv::solvePnP(object_points_, image_points_, camera_matrix_, distortion_coefficients_, rvec_, tvec_))
+    if (predict_result_.size() != 4)
       return false;
+
+    std::vector<cv::Point2f> four_image_points{};
+    std::vector<std::string> classes{};
+    cv::Point2f center{};
+    std::vector<int> order{};
+
+    for (auto &detection : predict_result_)
+    {
+      // 1: outermost point
+      four_image_points.emplace_back(detection.keypoints[1]);
+      classes.emplace_back(detection.class_name);
+    }
+
+    if (!Determine4PointsOrder(four_image_points, classes, center, order))
+      return false;
+
+    // apply order to points
+    for (auto &i : order)
+    {
+      for (auto &key_point : predict_result_[i].keypoints)
+        image_points_.emplace_back(key_point);
+    }
+
+    if (point_num == 12)
+    {
+      if (!cv::solvePnP(object_points_, image_points_, camera_matrix_, distortion_coefficients_, rvec_, tvec_))
+        return false;
+    }
+    else if (point_num == 4)
+    {
+      std::vector<cv::Point3f> tmp_object_points{};
+      std::vector<cv::Point2f> tmp_img_points{};
+
+      for (unsigned int i = 1; i < object_points_.size(); i += 3)
+      {
+        tmp_object_points.emplace_back(object_points_[i]);
+        tmp_img_points.emplace_back(image_points_[i]);
+      }
+      if (!cv::solvePnP(tmp_object_points, tmp_img_points, camera_matrix_, distortion_coefficients_, rvec_, tvec_))
+        return false;
+    }
 
     return true;
   }
