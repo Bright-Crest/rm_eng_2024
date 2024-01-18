@@ -18,6 +18,8 @@ def generate_launch_description():
     declare_video_url_cmd = DeclareLaunchArgument(name = 'video_url',
                           default_value = default_video_url)
 
+    declare_is_serial_used = DeclareLaunchArgument(name = 'is_serial_used',
+                          default_value = 'true')
 
     container = ComposableNodeContainer(
         name = 'Vision_Component_Container',
@@ -33,7 +35,8 @@ def generate_launch_description():
             ComposableNode(
                 package = 'hik_camera',
                 plugin = 'image_process::ImageProcessNode',
-                name = 'image_process_node'
+                name = 'image_process_node',
+                parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')}]
             )
         ],
         output = 'screen',
@@ -41,5 +44,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         declare_video_url_cmd,
+        declare_is_serial_used,
         container
         ])
