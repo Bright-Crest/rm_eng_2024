@@ -18,6 +18,7 @@
 #include "yolov8_inference/inference.h"
 /// Serial
 #include "serial/serial.h"
+#include "serial/serial_format.h"
 
 #define LEN_A 137.5f
 #define LEN_B 87.5f
@@ -106,6 +107,7 @@ namespace image_process
         transport_serial_.setBaudrate(115200);
         serial::Timeout _time = serial::Timeout::simpleTimeout(2000);
         transport_serial_.setTimeout(_time);
+        transport_serial_.setStopbits(serial::stopbits_one);
 
         transport_serial_.open();
       }
@@ -137,7 +139,9 @@ namespace image_process
 
       process_thread_ = std::thread{[this]() -> void
                                     {
-                                      uint8_t send_data_buffer[12];
+                                      uint8_t send_data_buffer[17];
+                                      uint8_t pose_data[12];
+
                                       while (rclcpp::ok())
                                       {
                                         cv_bridge::CvImageConstPtr frame{};
@@ -164,15 +168,25 @@ namespace image_process
                                           if (is_serial_used_)
                                           {
                                             // Debug
-                                            std::cout << "R: " << img_processor_.getRvec() << "\n";
+                                            send_data_buffer[0] = 0x23;
+                                            send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
+                                            send_data_buffer[2] = 12;
                                             for (int i = 0; i < 3; ++i)
                                             {
                                               uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
-                                              send_data_buffer[2 * i] = send_temp;
-                                              send_data_buffer[2 * i + 1] = send_temp >> 8;
+                                              pose_data[2 * i] = send_temp;
+                                              pose_data[2 * i + 1] = send_temp >> 8;
                                               send_temp = img_processor_.getRvec()[i] * 10000.f;
-                                              send_data_buffer[2 * i + 6] = send_temp;
-                                              send_data_buffer[2 * i + 1 + 6] = send_temp >> 8;
+                                              pose_data[2 * i + 6] = send_temp;
+                                              pose_data[2 * i + 1 + 6] = send_temp >> 8;
+                                            }
+                                            uint16_t crc_result = CRC16_Calc(pose_data, 12);
+                                            send_data_buffer[15] = crc_result;
+                                            send_data_buffer[16] = crc_result >> 8;
+                                            uint8_t pack_offset = 3;
+                                            for (int i = 0; i < 12; ++i)
+                                            {
+                                              send_data_buffer[i + pack_offset] = pose_data[i];
                                             }
                                             /*
                                             cv::Vec3f drawback;
