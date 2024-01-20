@@ -19,7 +19,7 @@ def generate_launch_description():
                           default_value = default_video_url)
 
     declare_is_serial_used = DeclareLaunchArgument(name = 'is_serial_used',
-                          default_value = 'true')
+                          default_value = 'false')
 
     container = ComposableNodeContainer(
         name = 'Vision_Component_Container',
