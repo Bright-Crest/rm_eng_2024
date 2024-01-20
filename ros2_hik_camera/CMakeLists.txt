@@ -70,10 +70,38 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
 )
 
 ## Cmake : image_process
+## For serial function
+if(APPLE) # macOS
+    find_library(IOKIT_LIBRARY IOKit)
+    find_library(FOUNDATION_LIBRARY Foundation)
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/serial/impl/unix.cc
+        src/serial/impl/list_ports/list_ports_osx.cc
+    )
+     target_link_libraries(${PROJECT_NAME} ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
+elseif(UNIX) # .*nix
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/serial/impl/unix.cc
+        src/serial/impl/list_ports/list_ports_linux.cc
+     )
+         target_link_libraries(${PROJECT_NAME} rt pthread)
+elseif(WIN32) # Windows
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/serial/impl/win.cc
+        src/serial/impl/list_ports/list_ports_win.cc
+    )
+      target_link_libraries(${PROJECT_NAME} setupapi)
+    ament_export_libraries(setupapi)
+endif()
+
+
 set(IMAGE_PROCESS image_process)
 ament_auto_add_library(${IMAGE_PROCESS} SHARED 
   src/image_process.cpp
   src/yolov8_inference/inference.cpp
+  src/serial/serial.cc
+  src/serial/impl/list_ports/list_ports_osx.cc
+  src/serial/impl/unix.cc
 )
 target_link_libraries(${IMAGE_PROCESS}
   opencv_highgui  

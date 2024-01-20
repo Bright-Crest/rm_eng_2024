@@ -12,8 +12,7 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
-    default_video_url = '/home/pan/rm.cv.eng/TEST/2.jpg'
-    # default_video_url = '/home/pan/rm.cv.eng/TEST/3.mp4'
+    default_video_url = '/home/pan/rm.cv.eng/TEST/2.mp4'
 
     # get parameters from <Upper launch.py> or <CLI>
     declare_video_url_cmd = DeclareLaunchArgument(name = 'video_url',
@@ -30,9 +29,8 @@ def generate_launch_description():
         composable_node_descriptions = [
             ComposableNode(
                 package = 'hik_camera',
-                plugin = 'video_capturer::VideoCapturerNode',
-                name = 'video_capturer_node',
-                parameters =[{'video_url':LaunchConfiguration('video_url')}]
+                plugin = 'hik_camera::HikCameraNode',
+                name = 'hik_camera_node',
             ),
             ComposableNode(
                 package = 'hik_camera',
@@ -45,7 +43,7 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        declare_is_serial_used,
         declare_video_url_cmd,
+        declare_is_serial_used,
         container
         ])

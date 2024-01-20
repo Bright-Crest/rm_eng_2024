@@ -14,12 +14,14 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/videoio.hpp>
 #include <cv_bridge/cv_bridge.h>
-
 /// yolov8
 #include "yolov8_inference/inference.h"
+/// Serial
+#include "serial/serial.h"
+#include "serial/serial_format.h"
 
-#define LEN_A   137.5f
-#define LEN_B   87.5f
+#define LEN_A 137.5f
+#define LEN_B 87.5f
 
 namespace image_process
 {
@@ -35,12 +37,9 @@ namespace image_process
     // yolov8 model result
     std::vector<yolov8::Detection> predict_result_;
 
-    cv::Matx33f camera_matrix_{2.8782842692538566e+02, 0., 2.8926852144861482e+02, 0.,
-                               2.8780772641312882e+02, 2.4934996600204786e+02, 0., 0., 1.};
-    // cv::Vec<float, 5> distortion_coefficients_{-6.8732455025061909e-02, 1.7584447291315711e-01,
-    //                                      1.0621261625698190e-03, -2.1403059368057149e-03,
-    //                                      -1.3665333157303680e-01};
-    cv::Vec<float, 5> distortion_coefficients_{};
+    // the default parameter from the Infantry MV-CS016-10UC
+    cv::Matx33f camera_matrix_{1622.412925, 0.000000, 601.366953, 0.000000, 1619.246860, 414.637285, 0.000000, 0.000000, 1.000000};
+    cv::Vec<float, 5> distortion_coefficients_{-0.144865, 0.216839, -0.002233, -0.003314, 0.000000};
 
     // sovlePnP result
     cv::Vec3f rvec_;
@@ -58,6 +57,9 @@ namespace image_process
   public:
     // for object_points_
     yolov8::Inference model_;
+
+    // whether the node has already got the camera_matrix
+    bool hasCalibrationCoefficient = false;
 
     ImageProcessor() = default;
     ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 640},
@@ -82,6 +84,12 @@ namespace image_process
 
     /// @brief for testing SolvePnP(), call only when SolvePnP() returns true; draw image_points_ and their order
     void AddImagePoints(cv::Mat img, bool add_order = true, bool add_points = true);
+
+    /// @brief get tvec_
+    cv::Vec3f getTvec();
+
+    /// @brief get rvec_
+    cv::Vec3f getRvec();
   };
 
   class ImageProcessNode : public rclcpp::Node
@@ -91,6 +99,31 @@ namespace image_process
     {
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
+
+      is_serial_used_ = this->declare_parameter("is_serial_used", false);
+      if (is_serial_used_)
+      {
+        transport_serial_.setPort("/dev/ttyUSB0");
+        transport_serial_.setBaudrate(115200);
+        serial::Timeout _time = serial::Timeout::simpleTimeout(2000);
+        transport_serial_.setTimeout(_time);
+        transport_serial_.setStopbits(serial::stopbits_one);
+
+        transport_serial_.open();
+      }
+
+      if (is_serial_used_)
+      {
+        if (!transport_serial_.isOpen())
+        {
+          RCLCPP_ERROR(this->get_logger(), "Serial Port is not open!");
+          return;
+        }
+        else
+          RCLCPP_INFO(this->get_logger(), "Seiral Port is open.");
+      }
+      else
+        RCLCPP_INFO(this->get_logger(), "Not using Serial Port.");
 
       // may throw ament_index_cpp::PackageNotFoundError exception
       std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
@@ -106,13 +139,17 @@ namespace image_process
 
       process_thread_ = std::thread{[this]() -> void
                                     {
+                                      uint8_t send_data_buffer[17];
+                                      uint8_t pose_data[12];
+
                                       while (rclcpp::ok())
                                       {
                                         cv_bridge::CvImageConstPtr frame{};
                                         if (!frame_queue_.empty())
                                         {
                                           std::lock_guard<std::mutex> lock(g_mutex);
-                                          frame = std::move(frame_queue_.front());
+                                          // only use the newest frame
+                                          frame = std::move(frame_queue_.back());
                                           frame_queue_.pop();
 
                                           // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
@@ -122,12 +159,60 @@ namespace image_process
                                           img_processor_.ModelPredict(frame->image);
                                           img_processor_.AddPredictResult(frame->image, true, false);
 
-                                          if (img_processor_.SolvePnP(4))
+                                          if (img_processor_.SolvePnP(12))
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
+
+                                            if (is_serial_used_)
+                                            {
+                                              // Debug
+                                              send_data_buffer[0] = 0x23;
+                                              send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
+                                              send_data_buffer[2] = 12;
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
+                                                pose_data[2 * i] = send_temp;
+                                                pose_data[2 * i + 1] = send_temp >> 8;
+                                                send_temp = img_processor_.getRvec()[i] * 10000.f;
+                                                pose_data[2 * i + 6] = send_temp;
+                                                pose_data[2 * i + 1 + 6] = send_temp >> 8;
+                                              }
+                                              uint16_t crc_result = CRC16_Calc(pose_data, 12);
+                                              send_data_buffer[15] = crc_result;
+                                              send_data_buffer[16] = crc_result >> 8;
+                                              uint8_t pack_offset = 3;
+                                              for (int i = 0; i < 12; ++i)
+                                              {
+                                                send_data_buffer[i + pack_offset] = pose_data[i];
+                                              }
+                                              /*
+                                              for (int i = 0; i < 12; ++i)
+                                              {
+                                                std::cout << std::hex << static_cast<int>(pose_data[i]) << " ";
+                                              }
+                                              std::cout << "\n";
+
+                                              cv::Vec3f drawback;
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                drawback[i] = (send_data_buffer[2 * i] | (send_data_buffer[2 * i + 1] << 8)) / 10.f;
+                                              }
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                drawback[i] = static_cast<int16_t>(send_data_buffer[2 * i + 6] | (send_data_buffer[2 * i + 1 + 6] << 8)) / 10000.f;
+                                              }
+                                              std::cout << "target: " << drawback << "\n";
+                                              */
+
+                                              transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
+                                            }
                                           }
+
                                           processed_image_pub_.publish(frame->toImageMsg());
+                                          // flush the frame_queue_, not efficient
+                                          frame_queue_ = {};
                                         }
                                       }
                                     }};
@@ -155,11 +240,17 @@ namespace image_process
     std::mutex g_mutex;
 
     ImageProcessor img_processor_;
+    bool is_serial_used_;
+    serial::Serial transport_serial_;
 
-    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &msg,
-                       const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camara_info)
+    void imageCallback(const sensor_msgs::msg::Image::ConstSharedPtr &msg, const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info)
     {
       std::lock_guard<std::mutex> lock(g_mutex);
+      if (!img_processor_.hasCalibrationCoefficient)
+      {
+        // img_processor_.GetCameraInfo(camera_info);
+        img_processor_.hasCalibrationCoefficient = true;
+      }
       try
       {
         frame_queue_.push(cv_bridge::toCvShare(msg, "bgr8"));
@@ -193,10 +284,7 @@ namespace image_process
   };
 
   const std::vector<cv::Point3f> ImageProcessor::object_points_{
-    {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, 
-    {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, 
-    {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, 
-    {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
+      {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
 
   /// @details check classes and then take the special point(with 2 gaps) as the first and push others counterclockwise
   bool ImageProcessor::Determine4PointsOrder(const std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, cv::Point2f &center, std::vector<int> &order)
@@ -270,8 +358,8 @@ namespace image_process
 
     // counterclockwise
     std::sort(angles_and_indices.begin(), angles_and_indices.end(),
-      [](const std::pair<float, int> &a, const std::pair<float, int> &b) -> bool { return a.first >= b.first; }
-      );
+              [](const std::pair<float, int> &a, const std::pair<float, int> &b) -> bool
+              { return a.first >= b.first; });
 
     for (auto &i : angles_and_indices)
       order.emplace_back(i.second);
@@ -306,6 +394,16 @@ namespace image_process
     {
       distortion_coefficients_ << camera_info->d[i];
     }
+  }
+
+  cv::Vec3f ImageProcessor::getTvec()
+  {
+    return tvec_;
+  }
+
+  cv::Vec3f ImageProcessor::getRvec()
+  {
+    return rvec_;
   }
 
   bool ImageProcessor::SolvePnP(int point_num)
@@ -364,6 +462,8 @@ namespace image_process
     cv::Matx33f rotation_matrix;
     cv::Rodrigues(rvec_, rotation_matrix);
 
+    // cv::Mat identity_matrix = cv::Mat::eye(3, 3, CV_64F);
+    // rotation_matrix = identity_matrix;
     // object coordinate system => camera coordinate system
     cv::Vec3f camera_point_3d = rotation_matrix * point + cv::Point3f(tvec_);
 
@@ -393,9 +493,10 @@ namespace image_process
 
   void ImageProcessor::AddPredictResult(cv::Mat img, bool add_boxes, bool add_keypoints)
   {
-    if (add_boxes)
+    for (auto &detection : predict_result_)
     {
-      for (auto &detection : predict_result_)
+      // prevent misidentification
+      if (add_boxes && detection.confidence > 0.75)
       {
         cv::rectangle(img, detection.box, cv::Scalar(255, 255, 255), 2);
         std::string classString = detection.class_name + ' ' + std::to_string(detection.confidence).substr(0, 4);
@@ -404,10 +505,8 @@ namespace image_process
         cv::rectangle(img, textBox, cv::Scalar(255, 255, 255), cv::FILLED);
         cv::putText(img, classString, cv::Point(detection.box.x + 5, detection.box.y - 10), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
       }
-    }
-    if (add_keypoints)
-    {
-      for (auto &detection : predict_result_)
+      // prevent misidentification
+      if (add_keypoints && detection.confidence > 0.75)
       {
         for (unsigned int i = 0; i < detection.keypoints.size(); ++i)
         {
