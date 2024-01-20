@@ -82,7 +82,7 @@ namespace video_capturer
                                         {
                                           image_msg_ptr_ = cv_bridge::CvImage(hdr, "bgr8", frame).toImageMsg();
                                           video_pub_.publish(*image_msg_ptr_, camera_info_msg_);
-                                          cv::waitKey(20);
+                                          cv::waitKey(30);
                                         }
                                         else
                                         {

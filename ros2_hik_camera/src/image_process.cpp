@@ -163,46 +163,53 @@ namespace image_process
                                           {
                                             AddSolvePnPResult(frame->image);
                                             img_processor_.AddImagePoints(frame->image);
+
+                                            if (is_serial_used_)
+                                            {
+                                              // Debug
+                                              send_data_buffer[0] = 0x23;
+                                              send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
+                                              send_data_buffer[2] = 12;
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
+                                                pose_data[2 * i] = send_temp;
+                                                pose_data[2 * i + 1] = send_temp >> 8;
+                                                send_temp = img_processor_.getRvec()[i] * 10000.f;
+                                                pose_data[2 * i + 6] = send_temp;
+                                                pose_data[2 * i + 1 + 6] = send_temp >> 8;
+                                              }
+                                              uint16_t crc_result = CRC16_Calc(pose_data, 12);
+                                              send_data_buffer[15] = crc_result;
+                                              send_data_buffer[16] = crc_result >> 8;
+                                              uint8_t pack_offset = 3;
+                                              for (int i = 0; i < 12; ++i)
+                                              {
+                                                send_data_buffer[i + pack_offset] = pose_data[i];
+                                              }
+                                              /*
+                                              for (int i = 0; i < 12; ++i)
+                                              {
+                                                std::cout << std::hex << static_cast<int>(pose_data[i]) << " ";
+                                              }
+                                              std::cout << "\n";
+
+                                              cv::Vec3f drawback;
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                drawback[i] = (send_data_buffer[2 * i] | (send_data_buffer[2 * i + 1] << 8)) / 10.f;
+                                              }
+                                              for (int i = 0; i < 3; ++i)
+                                              {
+                                                drawback[i] = static_cast<int16_t>(send_data_buffer[2 * i + 6] | (send_data_buffer[2 * i + 1 + 6] << 8)) / 10000.f;
+                                              }
+                                              std::cout << "target: " << drawback << "\n";
+                                              */
+
+                                              transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
+                                            }
                                           }
 
-                                          if (is_serial_used_)
-                                          {
-                                            // Debug
-                                            send_data_buffer[0] = 0x23;
-                                            send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
-                                            send_data_buffer[2] = 12;
-                                            for (int i = 0; i < 3; ++i)
-                                            {
-                                              uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
-                                              pose_data[2 * i] = send_temp;
-                                              pose_data[2 * i + 1] = send_temp >> 8;
-                                              send_temp = img_processor_.getRvec()[i] * 10000.f;
-                                              pose_data[2 * i + 6] = send_temp;
-                                              pose_data[2 * i + 1 + 6] = send_temp >> 8;
-                                            }
-                                            uint16_t crc_result = CRC16_Calc(pose_data, 12);
-                                            send_data_buffer[15] = crc_result;
-                                            send_data_buffer[16] = crc_result >> 8;
-                                            uint8_t pack_offset = 3;
-                                            for (int i = 0; i < 12; ++i)
-                                            {
-                                              send_data_buffer[i + pack_offset] = pose_data[i];
-                                            }
-                                            /*
-                                            cv::Vec3f drawback;
-                                            for (int i = 0; i < 3; ++i)
-                                            {
-                                              drawback[i] = (send_data_buffer[2 * i] | (send_data_buffer[2 * i + 1] << 8)) / 10.f;
-                                            }
-                                            for (int i = 0; i < 3; ++i)
-                                            {
-                                              drawback[i] = static_cast<int16_t>(send_data_buffer[2 * i + 6] | (send_data_buffer[2 * i + 1 + 6] << 8)) / 10000.f;
-                                            }
-                                            std::cout << "target: " << drawback << "\n";
-                                            */
-
-                                            transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
-                                          }
                                           processed_image_pub_.publish(frame->toImageMsg());
                                           // flush the frame_queue_, not efficient
                                           frame_queue_ = {};
@@ -486,9 +493,10 @@ namespace image_process
 
   void ImageProcessor::AddPredictResult(cv::Mat img, bool add_boxes, bool add_keypoints)
   {
-    if (add_boxes)
+    for (auto &detection : predict_result_)
     {
-      for (auto &detection : predict_result_)
+      // prevent misidentification
+      if (add_boxes && detection.confidence > 0.75)
       {
         cv::rectangle(img, detection.box, cv::Scalar(255, 255, 255), 2);
         std::string classString = detection.class_name + ' ' + std::to_string(detection.confidence).substr(0, 4);
@@ -497,10 +505,8 @@ namespace image_process
         cv::rectangle(img, textBox, cv::Scalar(255, 255, 255), cv::FILLED);
         cv::putText(img, classString, cv::Point(detection.box.x + 5, detection.box.y - 10), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
       }
-    }
-    if (add_keypoints)
-    {
-      for (auto &detection : predict_result_)
+      // prevent misidentification
+      if (add_keypoints && detection.confidence > 0.75)
       {
         for (unsigned int i = 0; i < detection.keypoints.size(); ++i)
         {

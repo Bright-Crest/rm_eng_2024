@@ -100,6 +100,8 @@ ament_auto_add_library(${IMAGE_PROCESS} SHARED
   src/image_process.cpp
   src/yolov8_inference/inference.cpp
   src/serial/serial.cc
+  src/serial/impl/list_ports/list_ports_osx.cc
+  src/serial/impl/unix.cc
 )
 target_link_libraries(${IMAGE_PROCESS}
   opencv_highgui  

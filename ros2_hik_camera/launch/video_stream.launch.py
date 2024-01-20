@@ -12,12 +12,15 @@ from launch_ros.descriptions import ComposableNode
 
 
 def generate_launch_description():
-    default_video_url = '/home/pan/rm.cv.eng/TEST/2.mp4'
+    default_video_url = '/home/pan/rm.cv.eng/TEST/2.jpg'
+    # default_video_url = '/home/pan/rm.cv.eng/TEST/3.mp4'
 
     # get parameters from <Upper launch.py> or <CLI>
     declare_video_url_cmd = DeclareLaunchArgument(name = 'video_url',
                           default_value = default_video_url)
 
+    declare_is_serial_used = DeclareLaunchArgument(name = 'is_serial_used',
+                          default_value = 'true')
 
     container = ComposableNodeContainer(
         name = 'Vision_Component_Container',
@@ -34,13 +37,15 @@ def generate_launch_description():
             ComposableNode(
                 package = 'hik_camera',
                 plugin = 'image_process::ImageProcessNode',
-                name = 'image_process_node'
+                name = 'image_process_node',
+                parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')}]
             )
         ],
         output = 'screen',
     )
 
     return LaunchDescription([
+        declare_is_serial_used,
         declare_video_url_cmd,
         container
         ])
