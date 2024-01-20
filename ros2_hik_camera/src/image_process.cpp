@@ -127,7 +127,7 @@ namespace image_process
 
       // may throw ament_index_cpp::PackageNotFoundError exception
       std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
-      const std::string model_path = package_share_directory + "/model/best.onnx";
+      const std::string model_path = package_share_directory + "/model/n_pose_4boxes_12points.onnx";
 
       img_processor_.model_.init(model_path, cv::Size(640, 640));
 
