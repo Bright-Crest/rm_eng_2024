@@ -33,6 +33,7 @@ namespace hik_camera
       MV_CC_CreateHandle(&camera_handle_, DeviceList.pDeviceInfo[0]);
 
       MV_CC_OpenDevice(camera_handle_);
+      MV_CC_SetTriggerMode(camera_handle_, MV_TRIGGER_MODE_OFF);
 
       // Get camera infomation
       MV_CC_GetImageInfo(camera_handle_, &img_info_);
