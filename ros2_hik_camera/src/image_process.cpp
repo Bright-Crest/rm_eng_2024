@@ -140,7 +140,6 @@ namespace image_process
       process_thread_ = std::thread{[this]() -> void
                                     {
                                       uint8_t send_data_buffer[17];
-                                      uint8_t pose_data[12];
 
                                       while (rclcpp::ok())
                                       {
@@ -167,30 +166,27 @@ namespace image_process
                                             if (is_serial_used_)
                                             {
                                               // Debug
+                                              uint8_t pack_offset = 3;
                                               send_data_buffer[0] = 0x23;
                                               send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
                                               send_data_buffer[2] = 12;
                                               for (int i = 0; i < 3; ++i)
                                               {
                                                 uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
-                                                pose_data[2 * i] = send_temp;
-                                                pose_data[2 * i + 1] = send_temp >> 8;
+                                                send_data_buffer[2 * i + pack_offset] = send_temp;
+                                                send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
                                                 send_temp = img_processor_.getRvec()[i] * 10000.f;
-                                                pose_data[2 * i + 6] = send_temp;
-                                                pose_data[2 * i + 1 + 6] = send_temp >> 8;
+                                                send_data_buffer[2 * i + 6 + pack_offset] = send_temp;
+                                                send_data_buffer[2 * i + 1 + 6 + pack_offset] = send_temp >> 8;
                                               }
-                                              uint16_t crc_result = CRC16_Calc(pose_data, 12);
+                                              uint16_t crc_result = CRC16_Calc(send_data_buffer, 15);
                                               send_data_buffer[15] = crc_result;
                                               send_data_buffer[16] = crc_result >> 8;
-                                              uint8_t pack_offset = 3;
-                                              for (int i = 0; i < 12; ++i)
-                                              {
-                                                send_data_buffer[i + pack_offset] = pose_data[i];
-                                              }
                                               /*
+                                              std::cout << "T: " << std::hex << static_cast<int>(crc_result) << "\n";
                                               for (int i = 0; i < 12; ++i)
                                               {
-                                                std::cout << std::hex << static_cast<int>(pose_data[i]) << " ";
+                                                std::cout << std::hex << static_cast<int>(send_data_buffer[i + pack_offset]) << " ";
                                               }
                                               std::cout << "\n";
 
@@ -496,7 +492,7 @@ namespace image_process
     for (auto &detection : predict_result_)
     {
       // prevent misidentification
-      if (add_boxes && detection.confidence > 0.75)
+      if (add_boxes && detection.confidence > 0.7)
       {
         cv::rectangle(img, detection.box, cv::Scalar(255, 255, 255), 2);
         std::string classString = detection.class_name + ' ' + std::to_string(detection.confidence).substr(0, 4);
@@ -506,7 +502,7 @@ namespace image_process
         cv::putText(img, classString, cv::Point(detection.box.x + 5, detection.box.y - 10), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
       }
       // prevent misidentification
-      if (add_keypoints && detection.confidence > 0.75)
+      if (add_keypoints && detection.confidence > 0.7)
       {
         for (unsigned int i = 0; i < detection.keypoints.size(); ++i)
         {
