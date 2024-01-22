@@ -13,7 +13,7 @@ from launch_ros.descriptions import ComposableNode
 
 def generate_launch_description():
     default_video_url = '/home/pan/rm.cv.eng/TEST/2.jpg'
-    # default_video_url = '/home/pan/rm.cv.eng/TEST/3.mp4'
+    #default_video_url = '/home/pan/rm.cv.eng/TEST/3.mp4'
 
     # get parameters from <Upper launch.py> or <CLI>
     declare_video_url_cmd = DeclareLaunchArgument(name = 'video_url',
