@@ -49,8 +49,10 @@ namespace image_process
 
         // sovlePnP result
         cv::Vec3f rvec_;
+        cv::Vec3f last_rvec_;
         // sovlePnP result
         cv::Vec3f tvec_;
+        cv::Vec3f last_tvec_;
 
         /// @brief called in SolvePnP(); determine the order of the four target points in the picture
         /// @param points 4 key points generated from the model
@@ -195,6 +197,11 @@ namespace image_process
                                                               send_data_buffer[16] = crc_result >> 8;
                                                               transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
                                                           }
+                                                          /*
+                                                          for (int i = 0; i < 12; ++i)
+                                                              std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
+                                                          std::cout << " " << std::endl;
+                                                           */
                                                       }
 
                                                       processed_image_pub_.publish(frame->toImageMsg());

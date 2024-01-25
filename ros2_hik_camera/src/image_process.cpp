@@ -286,6 +286,27 @@ namespace image_process
       return false;
     }
 
+    // from object frame to grasp frame
+    cv::Matx33f rotation_matrix, last_rotation_matrix, temp_matrix;
+    cv::Matx33f grasp2object = {-1, 0, 0, 0, 1, 0, 0, 0, -1};
+
+    cv::Rodrigues(rvec_, rotation_matrix);
+    rotation_matrix = rotation_matrix * grasp2object;
+
+    // interpolation
+    float interpolation_coeff = 0.7;
+    cv::Vec3f interpolation_vec;
+    cv::Rodrigues(last_rvec_, last_rotation_matrix);
+    cv::transpose(last_rotation_matrix, temp_matrix);
+    auto interpolation_matrix = temp_matrix * rotation_matrix;
+    cv::Rodrigues(interpolation_matrix, interpolation_vec);
+    cv::Rodrigues(interpolation_coeff * interpolation_vec, interpolation_matrix);
+    cv::Rodrigues(last_rotation_matrix * interpolation_matrix, rvec_);
+    last_rvec_ = rvec_;
+
+    tvec_ = interpolation_coeff * tvec_ + (1.f - interpolation_coeff) * last_tvec_;
+    last_tvec_ = tvec_;
+
     return true;
   }
 
