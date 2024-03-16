@@ -22,6 +22,8 @@
 
 #define LEN_A 137.5f
 #define LEN_B 87.5f
+#define SIDE_LEN_A 100.0f
+#define SIDE_LEN_B 45.5f
 
 namespace ExchangeInfo
 {
@@ -37,9 +39,11 @@ namespace image_process
     private:
         // for SolvePnP()
         static const std::vector<cv::Point3f> object_points_;
+        static const std::vector<cv::Point3f> side_plate_object_points_;
 
         // for SolvePnP() and AddImagePoints()
-        std::vector<cv::Point2f> image_points_;
+        std::vector<cv::Point2f>
+            image_points_;
         // yolov8 model result
         std::vector<yolov8::Detection> predict_result_;
 
@@ -54,18 +58,13 @@ namespace image_process
         cv::Vec3f tvec_;
         cv::Vec3f last_tvec_;
 
-        /// @brief called in SolvePnP(); determine the order of the four target points in the picture
-        /// @param points 4 key points generated from the model
-        /// @param classes the classes of the 4 key points
-        /// @param order output; the expected order of the 4 key points
-        /// @return is success
-        bool Determine4PointsOrder(const std::vector<cv::Point2f> &points, const std::vector<std::string> &classes, std::vector<int> &order);
         /// @brief called in SolvePnP(); determine the order of the arbitrary target points in the picture
         /// @param whole_points all key points of the front of the exchange station which is generated from the model
         /// @param classes the classes of the key points
         /// @param order output; the expected order of the key points
         /// @return is success
         bool DetermineAbitraryPointsOrder(const std::vector<cv::Point2f> &whole_points, const std::vector<std::string> &classes, std::vector<int> &order);
+        bool TraditionalDetect(const std::vector<cv::Point2f> &whole_points, std::vector<int> &order);
 
     public:
         // for object_points_
@@ -85,7 +84,7 @@ namespace image_process
         inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
         // call after calling ModelPrdeict()
         // modify image_points_
-        bool SolvePnP(int point_num);
+        bool SolvePnP(const cv::Mat &frame, int point_num);
         // call after calling SolvePnP()
         inline std::pair<cv::Vec3f, cv::Vec3f> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
 
@@ -171,7 +170,7 @@ namespace image_process
                                                       img_processor_.ModelPredict(frame->image);
                                                       img_processor_.AddPredictResult(frame->image, true, false);
 
-                                                      if (img_processor_.SolvePnP(12))
+                                                      if (img_processor_.SolvePnP(frame->image, 12))
                                                       {
                                                           AddSolvePnPResult(frame->image);
                                                           img_processor_.AddImagePoints(frame->image);
@@ -280,4 +279,7 @@ namespace image_process
 
     const std::vector<cv::Point3f> ImageProcessor::object_points_{
         {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
+    // the right plate
+    const std::vector<cv::Point3f> ImageProcessor::side_plate_object_points_{
+        {144.0f, SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}, {144.0f, 0, SIDE_LEN_B}, {144.0f, -SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}};
 } // namespace image_process
