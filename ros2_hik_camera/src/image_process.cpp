@@ -132,9 +132,7 @@ namespace image_process
   void ImageProcessor::GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info)
   {
     for (unsigned int i = 0; i < camera_info->k.size(); ++i)
-    {
-      camera_matrix_ << camera_info->k[i];
-    }
+      camera_matrix_(i / 3, i - i / 3 * 3) = camera_info->k[i];
 
     if (camera_info->d.size() != 5)
     {
@@ -143,9 +141,7 @@ namespace image_process
     }
 
     for (unsigned int i = 0; i < camera_info->d.size(); ++i)
-    {
-      distortion_coefficients_ << camera_info->d[i];
-    }
+      distortion_coefficients_(i) = static_cast<float>(camera_info->d[i]);
   }
 
   cv::Vec3f ImageProcessor::getTvec()
@@ -265,8 +261,6 @@ namespace image_process
     cv::Matx33f rotation_matrix;
     cv::Rodrigues(rvec_, rotation_matrix);
 
-    // cv::Mat identity_matrix = cv::Mat::eye(3, 3, CV_64F);
-    // rotation_matrix = identity_matrix;
     // object coordinate system => camera coordinate system
     cv::Vec3f camera_point_3d = rotation_matrix * point + cv::Point3f(tvec_);
 
@@ -313,7 +307,6 @@ namespace image_process
         for (unsigned int i = 0; i < detection.keypoints.size(); ++i)
         {
           cv::circle(img, detection.keypoints[i], 3, cv::Scalar(255, 0, 255), 2);
-          // cv::putText(frame, std::to_string(i), detection.keypoints[i], cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(255, 0, 255), 2);
         }
       }
     }

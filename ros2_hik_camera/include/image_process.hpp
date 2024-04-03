@@ -37,19 +37,17 @@ namespace image_process
     class ImageProcessor
     {
     private:
+        // the default parameter from the Infantry MV-CS016-10UC
+        cv::Matx33f camera_matrix_{863.060425, 0.000000, 626.518063, 0.000000, 863.348503, 357.765589, 0.000000, 0.000000, 1.000000};
+        cv::Vec<float, 5> distortion_coefficients_{-0.082726, 0.069328, 0.000180, -0.002923, 0.000000};
         // for SolvePnP()
         static const std::vector<cv::Point3f> object_points_;
         static const std::vector<cv::Point3f> side_plate_object_points_;
 
         // for SolvePnP() and AddImagePoints()
-        std::vector<cv::Point2f>
-            image_points_;
+        std::vector<cv::Point2f> image_points_;
         // yolov8 model result
         std::vector<yolov8::Detection> predict_result_;
-
-        // the default parameter from the Infantry MV-CS016-10UC
-        cv::Matx33f camera_matrix_{1622.412925, 0.000000, 601.366953, 0.000000, 1619.246860, 414.637285, 0.000000, 0.000000, 1.000000};
-        cv::Vec<float, 5> distortion_coefficients_{-0.144865, 0.216839, -0.002233, -0.003314, 0.000000};
 
         // sovlePnP result
         cv::Vec3f rvec_;
@@ -139,7 +137,7 @@ namespace image_process
 
             // may throw ament_index_cpp::PackageNotFoundError exception
             std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
-            const std::string model_path = package_share_directory + "/model/n_pose_4boxes_12points.onnx";
+            const std::string model_path = package_share_directory + "/model/s_pose_4boxes_12points.onnx";
 
             img_processor_.model_.init(model_path, cv::Size(640, 640));
 
@@ -177,7 +175,6 @@ namespace image_process
 
                                                           if (is_serial_used_)
                                                           {
-                                                              // Debug
                                                               uint8_t pack_offset = 3;
                                                               send_data_buffer[0] = 0x23;
                                                               send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
@@ -196,11 +193,10 @@ namespace image_process
                                                               send_data_buffer[16] = crc_result >> 8;
                                                               transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
                                                           }
-                                                          /*
-                                                          for (int i = 0; i < 12; ++i)
-                                                              std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
-                                                          std::cout << " " << std::endl;
-                                                           */
+                                                          // Debug
+                                                          // for (int i = 0; i < 12; ++i)
+                                                          // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
+                                                          // std::cout << " " << std::endl;
                                                       }
 
                                                       processed_image_pub_.publish(frame->toImageMsg());
@@ -242,7 +238,7 @@ namespace image_process
             std::lock_guard<std::mutex> lock(g_mutex);
             if (!img_processor_.hasCalibrationCoefficient)
             {
-                // img_processor_.GetCameraInfo(camera_info);
+                img_processor_.GetCameraInfo(camera_info);
                 img_processor_.hasCalibrationCoefficient = true;
             }
             try
