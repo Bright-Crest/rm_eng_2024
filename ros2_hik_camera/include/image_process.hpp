@@ -1,7 +1,6 @@
 #pragma once
 // used for 2 objects and 12 key points whose order is specified
 // When the model is changed, the following functions must be carefully checked and changed:
-// ImageProcessor::SolvePnP()
 
 // system
 #include <chrono>
@@ -53,7 +52,6 @@ namespace image_process
 
         // for fps calculation
         double last_system_tick_;
-
         // sovlePnP result
         cv::Vec3f rvec_;
         cv::Vec3f last_rvec_;
@@ -68,43 +66,40 @@ namespace image_process
         bool DetermineAbitraryPointsOrder(const std::vector<cv::Point2f> &whole_points, const std::vector<std::string> &classes, std::vector<int> &order);
 
     public:
-        // for object_points_
-        yolov8::Inference model_;
-
-        // whether the node has already got the camera_matrix
-        bool hasCalibrationCoefficient = false;
-
         ImageProcessor() = default;
         ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 640},
                        const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f);
         ~ImageProcessor() = default;
 
-        // unused
+        /// @brief get camera_matrix and distortion_coefficients from the first frame
         void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
 
         inline void ModelPredict(const cv::Mat &image) { model_.runInference(image, predict_result_); }
         // call after calling ModelPrdeict()
         // modify image_points_
-        bool SolvePnP(const cv::Mat &frame, int point_num);
+        bool SolvePnP(const cv::Mat &frame);
         // call after calling SolvePnP()
         inline std::pair<cv::Vec3f, cv::Vec3f> OutputRvecTvec() { return std::make_pair(rvec_, tvec_); }
 
+        /// @brief for testing yolov8 model; draw boxes and keypoints
+        void AddPredictResult(cv::Mat img, bool add_boxes = true, bool add_keypoints = true, bool add_fps = true);
+        /// @brief for testing SolvePnP(), call only when SolvePnP() returns true; draw image_points_ and their order
+        void AddImagePoints(cv::Mat img, bool add_order = true, bool add_points = true);
         /// @brief bring a 3d point from the object coordinate system to the picture(2d point)
         cv::Point2f Object2Picture(const cv::Point3f &point);
 
-        /// @brief for testing yolov8 model; draw boxes and keypoints
-        void AddPredictResult(cv::Mat img, bool add_boxes = true, bool add_keypoints = true, bool add_fps = true);
-
-        /// @brief for testing SolvePnP(), call only when SolvePnP() returns true; draw image_points_ and their order
-        void AddImagePoints(cv::Mat img, bool add_order = true, bool add_points = true);
-
         /// @brief get tvec_
         cv::Vec3f getTvec();
-
         /// @brief get rvec_
         cv::Vec3f getRvec();
 
         void initFPStick();
+
+        // for object_points_
+        yolov8::Inference model_;
+
+        // whether the node has already got the camera_matrix
+        bool hasCalibrationCoefficient = false;
     };
 
     class ImageProcessNode : public rclcpp::Node
@@ -159,55 +154,54 @@ namespace image_process
                                               while (rclcpp::ok())
                                               {
                                                   cv_bridge::CvImageConstPtr frame{};
-                                                  if (!frame_queue_.empty())
+                                                  if (frame_queue_.empty())
+                                                      continue;
+                                                  std::lock_guard<std::mutex> lock(g_mutex);
+                                                  // only use the newest frame
+                                                  frame = std::move(frame_queue_.back());
+                                                  frame_queue_.pop();
+
+                                                  // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
+                                                  // largely than out-queue operation.
+                                                  // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
+
+                                                  img_processor_.ModelPredict(frame->image);
+                                                  img_processor_.AddPredictResult(frame->image, true, false);
+
+                                                  if (img_processor_.SolvePnP(frame->image, 12))
                                                   {
-                                                      std::lock_guard<std::mutex> lock(g_mutex);
-                                                      // only use the newest frame
-                                                      frame = std::move(frame_queue_.back());
-                                                      frame_queue_.pop();
+                                                      AddSolvePnPResult(frame->image);
+                                                      img_processor_.AddImagePoints(frame->image);
 
-                                                      // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
-                                                      // largely than out-queue operation.
-                                                      // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
-
-                                                      img_processor_.ModelPredict(frame->image);
-                                                      img_processor_.AddPredictResult(frame->image, true, false);
-
-                                                      if (img_processor_.SolvePnP(frame->image, 12))
+                                                      if (is_serial_used_)
                                                       {
-                                                          AddSolvePnPResult(frame->image);
-                                                          img_processor_.AddImagePoints(frame->image);
-
-                                                          if (is_serial_used_)
+                                                          uint8_t pack_offset = 3;
+                                                          send_data_buffer[0] = 0x23;
+                                                          send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
+                                                          send_data_buffer[2] = 12;
+                                                          for (int i = 0; i < 3; ++i)
                                                           {
-                                                              uint8_t pack_offset = 3;
-                                                              send_data_buffer[0] = 0x23;
-                                                              send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
-                                                              send_data_buffer[2] = 12;
-                                                              for (int i = 0; i < 3; ++i)
-                                                              {
-                                                                  uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
-                                                                  send_data_buffer[2 * i + pack_offset] = send_temp;
-                                                                  send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
-                                                                  send_temp = img_processor_.getRvec()[i] * 10000.f;
-                                                                  send_data_buffer[2 * i + 6 + pack_offset] = send_temp;
-                                                                  send_data_buffer[2 * i + 1 + 6 + pack_offset] = send_temp >> 8;
-                                                              }
-                                                              uint16_t crc_result = CRC16_Calc(send_data_buffer, 15);
-                                                              send_data_buffer[15] = crc_result;
-                                                              send_data_buffer[16] = crc_result >> 8;
-                                                              transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
+                                                              uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
+                                                              send_data_buffer[2 * i + pack_offset] = send_temp;
+                                                              send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
+                                                              send_temp = img_processor_.getRvec()[i] * 10000.f;
+                                                              send_data_buffer[2 * i + 6 + pack_offset] = send_temp;
+                                                              send_data_buffer[2 * i + 1 + 6 + pack_offset] = send_temp >> 8;
                                                           }
-                                                          // Debug
-                                                          // for (int i = 0; i < 12; ++i)
-                                                          // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
-                                                          // std::cout << " " << std::endl;
+                                                          uint16_t crc_result = CRC16_Calc(send_data_buffer, 15);
+                                                          send_data_buffer[15] = crc_result;
+                                                          send_data_buffer[16] = crc_result >> 8;
+                                                          transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
                                                       }
-
-                                                      processed_image_pub_.publish(frame->toImageMsg());
-                                                      // flush the frame_queue_, not efficient
-                                                      frame_queue_ = {};
+                                                      // Debug
+                                                      // for (int i = 0; i < 12; ++i)
+                                                      // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
+                                                      // std::cout << " " << std::endl;
                                                   }
+
+                                                  processed_image_pub_.publish(frame->toImageMsg());
+                                                  // flush the frame_queue_, not efficient
+                                                  frame_queue_ = {};
                                               }
                                           }};
 

@@ -154,7 +154,7 @@ namespace image_process
     return rvec_;
   }
 
-  bool ImageProcessor::SolvePnP(const cv::Mat &frame, int point_num)
+  bool ImageProcessor::SolvePnP(const cv::Mat &frame)
   {
     image_points_.clear();
     std::vector<cv::Point3f> src_points{};
