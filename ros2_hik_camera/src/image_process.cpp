@@ -118,11 +118,6 @@ namespace image_process
     return true;
   }
 
-  bool ImageProcessor::TraditionalDetect(const std::vector<cv::Point2f> &whole_points, std::vector<int> &order)
-  {
-    return false;
-  }
-
   ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
                                  const float &model_score_threshold, const float &model_nms_threshold)
   {
@@ -142,6 +137,11 @@ namespace image_process
 
     for (unsigned int i = 0; i < camera_info->d.size(); ++i)
       distortion_coefficients_(i) = static_cast<float>(camera_info->d[i]);
+  }
+
+  void ImageProcessor::initFPStick()
+  {
+    last_system_tick_ = static_cast<double>(cv::getTickCount());
   }
 
   cv::Vec3f ImageProcessor::getTvec()
@@ -288,7 +288,7 @@ namespace image_process
     return cv::Point2f{std::move(tmp.x), std::move(tmp.y)};
   }
 
-  void ImageProcessor::AddPredictResult(cv::Mat img, bool add_boxes, bool add_keypoints)
+  void ImageProcessor::AddPredictResult(cv::Mat img, bool add_boxes, bool add_keypoints, bool add_fps)
   {
     for (auto &detection : predict_result_)
     {
@@ -309,6 +309,14 @@ namespace image_process
           cv::circle(img, detection.keypoints[i], 3, cv::Scalar(255, 0, 255), 2);
         }
       }
+    }
+    if (add_fps)
+    {
+      double current_system_tick = static_cast<double>(cv::getTickCount());
+      double inference_time = (current_system_tick - last_system_tick_) / cv::getTickFrequency() * 1000;
+      last_system_tick_ = current_system_tick;
+      int FPS = static_cast<int>(1000.0f / inference_time);
+      cv::putText(img, std::to_string(FPS), cv::Point(20, 40), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(255, 0, 255), 2, 0);
     }
   }
 

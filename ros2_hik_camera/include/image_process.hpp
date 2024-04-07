@@ -3,6 +3,9 @@
 // When the model is changed, the following functions must be carefully checked and changed:
 // ImageProcessor::SolvePnP()
 
+// system
+#include <chrono>
+
 /// ros2
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/logging.hpp>
@@ -40,19 +43,20 @@ namespace image_process
         // the default parameter from the Infantry MV-CS016-10UC
         cv::Matx33f camera_matrix_{863.060425, 0.000000, 626.518063, 0.000000, 863.348503, 357.765589, 0.000000, 0.000000, 1.000000};
         cv::Vec<float, 5> distortion_coefficients_{-0.082726, 0.069328, 0.000180, -0.002923, 0.000000};
+
         // for SolvePnP()
         static const std::vector<cv::Point3f> object_points_;
         static const std::vector<cv::Point3f> side_plate_object_points_;
-
-        // for SolvePnP() and AddImagePoints()
         std::vector<cv::Point2f> image_points_;
         // yolov8 model result
         std::vector<yolov8::Detection> predict_result_;
 
+        // for fps calculation
+        double last_system_tick_;
+
         // sovlePnP result
         cv::Vec3f rvec_;
         cv::Vec3f last_rvec_;
-        // sovlePnP result
         cv::Vec3f tvec_;
         cv::Vec3f last_tvec_;
 
@@ -62,7 +66,6 @@ namespace image_process
         /// @param order output; the expected order of the key points
         /// @return is success
         bool DetermineAbitraryPointsOrder(const std::vector<cv::Point2f> &whole_points, const std::vector<std::string> &classes, std::vector<int> &order);
-        bool TraditionalDetect(const std::vector<cv::Point2f> &whole_points, std::vector<int> &order);
 
     public:
         // for object_points_
@@ -90,7 +93,7 @@ namespace image_process
         cv::Point2f Object2Picture(const cv::Point3f &point);
 
         /// @brief for testing yolov8 model; draw boxes and keypoints
-        void AddPredictResult(cv::Mat img, bool add_boxes = true, bool add_keypoints = true);
+        void AddPredictResult(cv::Mat img, bool add_boxes = true, bool add_keypoints = true, bool add_fps = true);
 
         /// @brief for testing SolvePnP(), call only when SolvePnP() returns true; draw image_points_ and their order
         void AddImagePoints(cv::Mat img, bool add_order = true, bool add_points = true);
@@ -100,6 +103,8 @@ namespace image_process
 
         /// @brief get rvec_
         cv::Vec3f getRvec();
+
+        void initFPStick();
     };
 
     class ImageProcessNode : public rclcpp::Node
@@ -240,6 +245,7 @@ namespace image_process
             {
                 img_processor_.GetCameraInfo(camera_info);
                 img_processor_.hasCalibrationCoefficient = true;
+                img_processor_.initFPStick();
             }
             try
             {
