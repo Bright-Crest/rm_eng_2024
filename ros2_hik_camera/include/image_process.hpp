@@ -168,13 +168,15 @@ namespace image_process
                                                   img_processor_.ModelPredict(frame->image);
                                                   img_processor_.AddPredictResult(frame->image, true, false);
 
-                                                  if (img_processor_.SolvePnP(frame->image, 12))
+                                                  if (img_processor_.SolvePnP(frame->image))
                                                   {
                                                       AddSolvePnPResult(frame->image);
                                                       img_processor_.AddImagePoints(frame->image);
 
                                                       if (is_serial_used_)
                                                       {
+                                                          // READY FOR TEST
+                                                          // sendSerialData(img_processor_.getTvec(), img_processor_.getRvec());
                                                           uint8_t pack_offset = 3;
                                                           send_data_buffer[0] = 0x23;
                                                           send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
@@ -193,10 +195,6 @@ namespace image_process
                                                           send_data_buffer[16] = crc_result >> 8;
                                                           transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
                                                       }
-                                                      // Debug
-                                                      // for (int i = 0; i < 12; ++i)
-                                                      // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
-                                                      // std::cout << " " << std::endl;
                                                   }
 
                                                   processed_image_pub_.publish(frame->toImageMsg());
@@ -250,6 +248,32 @@ namespace image_process
                 auto logger = rclcpp::get_logger("ImageProcess Error");
                 RCLCPP_ERROR(logger, "Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
             }
+        }
+
+        void sendSerialData(const cv::Vec3f &tvec, const cv::Vec3f &rvec)
+        {
+            uint8_t pack_offset = 3;
+            uint8_t send_data_buffer[17];
+            send_data_buffer[0] = 0x23;
+            send_data_buffer[1] = MsgStream::PC2BOARD | MsgType::AUTO_EXCHANGE;
+            send_data_buffer[2] = 12;
+            for (int i = 0; i < 3; ++i)
+            {
+                uint16_t send_temp = tvec[i] * 10.f;
+                send_data_buffer[2 * i + pack_offset] = send_temp;
+                send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
+                send_temp = rvec[i] * 10000.f;
+                send_data_buffer[2 * i + 6 + pack_offset] = send_temp;
+                send_data_buffer[2 * i + 1 + 6 + pack_offset] = send_temp >> 8;
+            }
+            uint16_t crc_result = CRC16_Calc(send_data_buffer, 15);
+            send_data_buffer[15] = crc_result;
+            send_data_buffer[16] = crc_result >> 8;
+            transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
+            // Debug
+            // for (int i = 0; i < 12; ++i)
+            // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
+            // std::cout << " " << std::endl;
         }
 
         /// @brief for testing SolvePnP(); draw xyz coordinate system
