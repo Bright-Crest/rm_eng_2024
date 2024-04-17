@@ -5,7 +5,7 @@
 ## Quick Install
 
 ```bash
-conda create -n ENV_NAME python=311
+conda create -n ENV_NAME python=3.11
 pip install -r ./conda_env/requirements.txt
 ```
 
