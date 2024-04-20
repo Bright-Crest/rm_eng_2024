@@ -153,26 +153,21 @@ namespace image_process
 
                                               while (rclcpp::ok())
                                               {
-                                                  cv_bridge::CvImageConstPtr frame{};
                                                   if (frame_queue_.empty())
                                                       continue;
                                                   std::lock_guard<std::mutex> lock(g_mutex);
                                                   // only use the newest frame
-                                                  frame = std::move(frame_queue_.back());
-                                                  frame_queue_.pop();
-
+                                                  cv_bridge::CvImageConstPtr frame = std::move(frame_queue_.back());
                                                   // Warning : do not unlock mutex earlier, because the speed of in-queue is faster
                                                   // largely than out-queue operation.
                                                   // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
 
                                                   img_processor_.ModelPredict(frame->image);
                                                   img_processor_.AddPredictResult(frame->image, true, false);
-
                                                   if (img_processor_.SolvePnP(frame->image))
                                                   {
                                                       AddSolvePnPResult(frame->image);
                                                       img_processor_.AddImagePoints(frame->image);
-
                                                       if (is_serial_used_)
                                                       {
                                                           // READY FOR TEST
@@ -198,8 +193,8 @@ namespace image_process
                                                   }
 
                                                   processed_image_pub_.publish(frame->toImageMsg());
-                                                  // flush the frame_queue_, not efficient
-                                                  frame_queue_ = {};
+                                                  std::queue<cv_bridge::CvImageConstPtr> emptyQueue;
+                                                  std::swap(frame_queue_, emptyQueue);
                                               }
                                           }};
 
@@ -270,10 +265,6 @@ namespace image_process
             send_data_buffer[15] = crc_result;
             send_data_buffer[16] = crc_result >> 8;
             transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
-            // Debug
-            // for (int i = 0; i < 12; ++i)
-            // std::cout << std::hex << static_cast<int>(send_data_buffer[3 + i]) << " ";
-            // std::cout << " " << std::endl;
         }
 
         /// @brief for testing SolvePnP(); draw xyz coordinate system
