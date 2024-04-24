@@ -17,7 +17,7 @@
 #include <opencv2/videoio.hpp>
 #include <cv_bridge/cv_bridge.h>
 /// yolov8
-#include "../src/yolov8_inference/inference.h"
+#include "../include/yolov8_inference/inference.h"
 /// Serial
 #include "serial/serial.h"
 #include "serial/serial_format.h"
@@ -26,6 +26,11 @@
 #define LEN_B 87.5f
 #define SIDE_LEN_A 100.0f
 #define SIDE_LEN_B 45.5f
+
+// For model inference
+#define MODEL_INPUT_SHAPE       cv::Size(640, 640)
+#define MODEL_SCORE_THRESHOLD   0.45f
+#define MODEL_NMS_THRESHOLD     0.50f
 
 namespace ExchangeInfo
 {
@@ -68,7 +73,7 @@ namespace image_process
     public:
         ImageProcessor() = default;
         ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 640},
-                       const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f);
+                       const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f, bool is_gpu = false);
         ~ImageProcessor() = default;
 
         /// @brief get camera_matrix and distortion_coefficients from the first frame
@@ -139,7 +144,8 @@ namespace image_process
             std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
             const std::string model_path = package_share_directory + "/model/s_pose_4boxes_12points.onnx";
 
-            img_processor_.model_.init(model_path, cv::Size(640, 640));
+            is_gpu_ = this->declare_parameter("is_gpu", false);
+            img_processor_.model_.init(model_path, MODEL_INPUT_SHAPE, MODEL_SCORE_THRESHOLD, MODEL_NMS_THRESHOLD, is_gpu_);
 
             image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                      std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
@@ -226,6 +232,7 @@ namespace image_process
         std::mutex g_mutex;
 
         ImageProcessor img_processor_;
+        bool is_gpu_;
         bool is_serial_used_;
         serial::Serial transport_serial_;
 

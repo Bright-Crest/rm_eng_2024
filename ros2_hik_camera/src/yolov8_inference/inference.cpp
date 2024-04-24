@@ -4,40 +4,81 @@
 #include "inference.h"
 
 yolov8::Inference::Inference(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold,
-                     const float &modelNMSThreshold, const std::string &classesTxtFile)
+                     const float &modelNMSThreshold, const std::string &classesTxtFile, bool is_gpu)
 {
-    init(onnxModelPath, modelInputShape, modelScoreThreshold, modelNMSThreshold, classesTxtFile);
+    init(onnxModelPath, modelInputShape, modelScoreThreshold, modelNMSThreshold, classesTxtFile, is_gpu);
 }
 
-void yolov8::Inference::init(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
+void yolov8::Inference::init(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile, bool is_gpu)
 {
     model_path_ = onnxModelPath;
     model_shape_ = modelInputShape;
     model_score_threshold_ = modelScoreThreshold;
     model_nms_threshold_ = modelNMSThreshold;
     classes_path_ = classesTxtFile;
-
-    loadOnnxNetwork();
+    is_gpu_ = is_gpu;
 
     if (classes_path_ == "")
         classes_ = {"0", "1"};
     else
         loadClassesFromFile();
+
+    if (!is_gpu_)
+    {
+        loadOnnxNetwork();
+    }
+    else
+    {
+        yolov8_gpu::YoloV8Config config{};
+        config.probabilityThreshold = model_score_threshold_;
+        config.nmsThreshold = model_nms_threshold_;
+
+        gpu_inference_.init(onnxModelPath, config);
+    }
 }
 
 void yolov8::Inference::runInference(const cv::Mat &input, std::vector<Detection> &detections)
 {
-    cv::Mat modelInput = input;
-    if (is_letterbox_for_square_ && model_shape_.width == model_shape_.height)
-        modelInput = formatToSquare(modelInput);
+    if (!is_gpu_)
+        runCpuInference(input, detections);
+    else
+        runGpuInference(input, detections);
+}
 
+void yolov8::Inference::runCpuInference(const cv::Mat &input, std::vector<Detection> &detections)
+{
+    cv::Mat model_input;
+    std::vector<cv::Mat> model_outputs;
+
+    preprocess(model_input, input);
+    forward(model_outputs, model_input);
+    postprocess(detections, model_outputs);
+}
+
+void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detection> &detections)
+{
+    std::vector<std::vector<std::vector<float>>> tmp_model_outputs;
+    gpu_inference_.forward(tmp_model_outputs, input);
+    postprocess(detections, convertVector2Mat<float>(tmp_model_outputs))
+}
+
+void yolov8::Inference::preprocess(cv::Mat &model_input, const cv::Mat &input)
+{
+    if (is_letterbox_for_square_ && model_shape_.width == model_shape_.height)
+        output = formatToSquare(output);
+}
+
+void yolov8::Inference::forward(std::vector<cv::Mat> &model_outputs, const cv::Mat &model_input)
+{
     cv::Mat blob;
-    cv::dnn::blobFromImage(modelInput, blob, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
+    cv::dnn::blobFromImage(input, blob, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
     net_.setInput(blob);
 
-    std::vector<cv::Mat> outputs;
     net_.forward(outputs, net_.getUnconnectedOutLayersNames());
+}
 
+void yolov8::Inference::postprocess(std::vector<Detection>& detections, std::vector<cv::Mat>& model_outputs)
+{
     // yolov8 has an output of shape (batchSize, dimensions, rows)
     // the batch size is usually one; rows do not matter
     // dimensions = BOX_NUM + classes_.size() + keypoints.size() * 2

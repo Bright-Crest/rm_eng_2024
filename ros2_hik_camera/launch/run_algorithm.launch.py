@@ -19,6 +19,8 @@ def generate_launch_description():
     # get parameters from <Upper launch.py> or <CLI>
     declare_is_serial_used = DeclareLaunchArgument(name = 'is_serial_used',
                           default_value = 'false')
+    declare_is_gpu = DeclareLaunchArgument(name = 'is_gpu',
+                          default_value = 'true')
     declare_params_file =  DeclareLaunchArgument(name='params_file',
                               default_value=params_file)
     declare_camera_info =  DeclareLaunchArgument(name='camera_info_url',

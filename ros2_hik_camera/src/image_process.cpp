@@ -119,9 +119,9 @@ namespace image_process
   }
 
   ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
-                                 const float &model_score_threshold, const float &model_nms_threshold)
+                                 const float &model_score_threshold, const float &model_nms_threshold, bool is_gpu)
   {
-    model_.init(model_path, model_shape, model_score_threshold, model_nms_threshold);
+    model_.init(model_path, model_shape, model_score_threshold, model_nms_threshold, is_gpu);
   }
 
   void ImageProcessor::GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info)
