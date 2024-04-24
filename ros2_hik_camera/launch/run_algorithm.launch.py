@@ -36,13 +36,15 @@ def generate_launch_description():
                 package = 'hik_camera',
                 plugin = 'hik_camera::HikCameraNode',
                 name = 'hik_camera_node',
-                parameters =[{'camera_info_url':LaunchConfiguration('camera_info_url')}]
+                parameters =[{'camera_info_url':LaunchConfiguration('camera_info_url')}],
+                extra_arguments=[{'use_intra_process_comms': True}]
             ),
             ComposableNode(
                 package = 'hik_camera',
                 plugin = 'image_process::ImageProcessNode',
                 name = 'image_process_node',
-                parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')}]
+                parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')}],
+                extra_arguments=[{'use_intra_process_comms': True}]
             )
         ],
         output = 'screen',

@@ -54,8 +54,7 @@ namespace hik_camera
 
       // Load camera info
       camera_name_ = this->declare_parameter("camera_name", "narrow_stereo");
-      camera_info_manager_ =
-          std::make_unique<camera_info_manager::CameraInfoManager>(this, camera_name_);
+      camera_info_manager_ = std::make_unique<camera_info_manager::CameraInfoManager>(this, camera_name_);
       auto camera_info_url =
           this->declare_parameter("camera_info_url", "package://hik_camera/config/camera_info.yaml");
       if (camera_info_manager_->validateURL(camera_info_url))
