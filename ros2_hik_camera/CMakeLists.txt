@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.8)
 project(hik_camera)
 
 ## Use C++14
-set(CMAKE_CXX_STANDARD 14)
+## set(CMAKE_CXX_STANDARD 14)
+## filesystem c++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ## By adding -Wall and -Werror, the compiler does not ignore warnings anymore,
@@ -70,13 +72,110 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
 
 ## Cmake : image_process
 ## For serial function
-set(IMAGE_PROCESS image_process)
-ament_auto_add_library(${IMAGE_PROCESS} SHARED 
-  src/image_process.cpp
-  src/yolov8_inference/inference.cpp
-  src/serial/serial.cc
-)
-target_include_directories(${IMAGE_PROCESS} include include/yolov8_inference)
+# set(IMAGE_PROCESS image_process)
+# ament_auto_add_library(${IMAGE_PROCESS} SHARED 
+#   src/image_process.cpp
+#   src/yolov8_inference/inference.cpp
+#   src/serial/serial.cc
+# )
+
+# >>> for GPU inference >>>
+# TODO: add_compile_definitions
+option(ENABLE_GPU "Enable GPU inference if applicable" ON)
+if (ENABLE_GPU)
+	set(TENSORRT_CPP_API tensorrt_cpp_api)
+	set(YOLOV8_GPU yolov8_gpu)
+	set(IMAGE_PROCESS image_process)
+
+	ament_auto_add_library(${IMAGE_PROCESS} SHARED 
+	  src/image_process.cpp
+	  ${TENSORRT_CPP_API}/src/engine.cpp
+	  src/yolov8_inference/gpu_inference.cpp
+	  src/yolov8_inference/inference.cpp
+	  src/serial/serial.cc
+	)
+
+	# # >>> tensorrt_cpp_api >>>
+	# set(TENSORRT_CPP_API tensorrt_cpp_api)
+	# 
+	# # For finding FindTensorRT.cmake
+	# set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${TENSORRT_CPP_API}/cmake" ${CMAKE_MODULE_PATH})
+	# 
+	# # TODO: Specify the path to TensorRT root dir if using GPU Inference
+	# if (NOT TensorRT_DIR)
+	# set(TensorRT_DIR /usr/src/tensorrt)
+	# endif()
+	# # Use the correct version of CUDA
+	# set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
+	# 
+	# # Suppress some warnings of find_package CUDA 
+	# if(POLICY CMP0146)
+	# cmake_policy(SET CMP0146 OLD) 
+	# endif()
+	# 
+	# find_package(TensorRT REQUIRED)
+	# find_package(CUDA REQUIRED)
+	# 
+	# add_library(${TENSORRT_CPP_API} SHARED
+	# ${TENSORRT_CPP_API}/src/engine.cpp
+	# )
+	# target_include_directories(${TENSORRT_CPP_API} PUBLIC ${TENSORRT_CPP_API}/include ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS})
+	# target_link_libraries(${TENSORRT_CPP_API} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${TensorRT_LIBRARIES})
+	# # <<< tensorrt_cpp_api <<<
+	# 
+	# # >>> yolov8 gpu inference >>>
+	# set(YOLOV8_GPU yolov8_gpu)
+	# 
+	# add_library(${YOLOV8_GPU} SHARED
+	# src/yolov8_inference/gpu_inference.cpp
+	# )
+	# target_link_libraries(${YOLOV8_GPU} ${TENSORRT_CPP_API} ${OpenCV_LIBS})
+	# target_include_directories(${YOLOV8_GPU} PUBLIC include/yolov8_inference ${TENSORRT_CPP_API}/include)
+	# # <<< yolov8 gpu inference <<<
+	# 
+	# target_link_libraries(${IMAGE_PROCESS} ${YOLOV8_GPU})
+
+	# >>> tensorrt_cpp_api >>>
+	 
+	# For finding FindTensorRT.cmake
+	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${TENSORRT_CPP_API}/cmake" ${CMAKE_MODULE_PATH})
+	 
+	# TODO: Specify the path to TensorRT root dir if using GPU Inference
+	if (NOT TensorRT_DIR)
+	  set(TensorRT_DIR /usr/src/tensorrt)
+	endif()
+	# Use the correct version of CUDA
+	set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
+	 
+	# Suppress some warnings of find_package CUDA 
+	if(POLICY CMP0146)
+	cmake_policy(SET CMP0146 OLD) 
+	endif()
+	 
+	find_package(TensorRT REQUIRED)
+	find_package(CUDA REQUIRED)
+	 
+	target_include_directories(${IMAGE_PROCESS} PUBLIC ${TENSORRT_CPP_API}/include ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS})
+	target_link_libraries(${IMAGE_PROCESS} ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${TensorRT_LIBRARIES})
+	# <<< tensorrt_cpp_api <<<
+	
+	# >>> yolov8 gpu inference >>>
+	 
+	target_include_directories(${IMAGE_PROCESS} PUBLIC include/yolov8_inference)
+	# <<< yolov8 gpu inference <<<
+else()
+	set(IMAGE_PROCESS image_process)
+
+	ament_auto_add_library(${IMAGE_PROCESS} SHARED 
+	  src/image_process.cpp
+	  src/yolov8_inference/inference.cpp
+	  src/serial/serial.cc
+	)
+endif()
+# <<< for GPU inference <<<
+
+# TODO: is this necessary
+# target_include_directories(${IMAGE_PROCESS} PUBLIC include include/yolov8_inference)
 
 if(APPLE) # macOS
     find_library(IOKIT_LIBRARY IOKit)
@@ -105,46 +204,6 @@ target_link_libraries(${IMAGE_PROCESS}
   opencv_highgui  
 )
 
-# >>> for GPU inference >>>
-# TODO: add_compile_definitions
-option(ENABLE_GPU "Enable GPU inference if applicable" ON)
-if (ENABLE_GPU)
-  # >>> tensorrt_api >>>
-  set(TENSORRT_API tensorrt_api)
-
-  # For finding FindTensorRT.cmake
-  set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${TENSORRT_API}/cmake" ${CMAKE_MODULE_PATH})
-
-  # TODO: Specify the path to TensorRT root dir if using GPU Inference
-  if (NOT TensorRT_DIR)
-      set(TensorRT_DIR /usr/src/tensorrt)
-  endif()
-  # Use the correct version of CUDA
-  set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
-
-  find_package(TensorRT REQUIRED)
-  find_package(CUDA REQUIRED)
-
-  ament_auto_add_library(${TENSORRT_API} SHARED
-    ${TENSORRT_API}/src/engine.cpp
-  )
-  target_include_directories(${TENSORRT_API} PUBLIC ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS} ${TensorRT_INCLUDE_DIRS})
-  target_link_libraries(${TensorRT_API} PUBLIC ${OpenCV_LIBS} ${CUDA_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} ${TensorRT_LIBRARIES})
-  # <<< tensorrt_api <<<
-
-  # >>> yolov8 gpu inference >>>
-  set(YOLOV8_GPU yolov8_gpu)
-
-  ament_auto_add_library(${YOLOV8_GPU} SHARED
-    src/yolov8_inference/gpu_inference.cpp
-  )
-  target_link_libraries(${YOLOV8_GPU} PUBLIC ${TENSORRT_API} ${OpenCV_LIBS})
-  target_include_directories(${YOLOV8_GPU} PUBLIC include/yolov8_inference ${TENSORRT_API}/include)
-  # <<< yolov8 gpu inference <<<
-
-  target_link_libraries(${IMAGE_PROCESS} ${YOLOV8_GPU})
-endif()
-# <<< for GPU inference <<<
 
 rclcpp_components_register_node(${IMAGE_PROCESS}
   PLUGIN image_process::ImageProcessNode 

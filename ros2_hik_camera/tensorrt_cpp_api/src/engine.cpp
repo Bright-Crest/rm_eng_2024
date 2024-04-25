@@ -53,7 +53,8 @@ Int8EntropyCalibrator2::Int8EntropyCalibrator2(int32_t batchSize, int32_t inputW
     }
 
     // Randomize the calibration data
-    auto rd = std::random_device{};
+    // auto rd = std::random_device{}; // deleted function
+    std::random_device rd{};
     auto rng = std::default_random_engine{rd()};
     std::shuffle(std::begin(m_imgPaths), std::end(m_imgPaths), rng);
 }

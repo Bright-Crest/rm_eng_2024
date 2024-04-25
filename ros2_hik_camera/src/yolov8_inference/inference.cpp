@@ -3,13 +3,12 @@
 
 #include "inference.h"
 
-yolov8::Inference::Inference(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold,
-                     const float &modelNMSThreshold, const std::string &classesTxtFile, bool is_gpu)
+yolov8::Inference::Inference(const std::string &onnxModelPath, bool is_gpu, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
 {
-    init(onnxModelPath, modelInputShape, modelScoreThreshold, modelNMSThreshold, classesTxtFile, is_gpu);
+    init(onnxModelPath, is_gpu, modelInputShape, modelScoreThreshold, modelNMSThreshold, classesTxtFile);
 }
 
-void yolov8::Inference::init(const std::string &onnxModelPath, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile, bool is_gpu)
+void yolov8::Inference::init(const std::string &onnxModelPath, bool is_gpu, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
 {
     model_path_ = onnxModelPath;
     model_shape_ = modelInputShape;
@@ -39,6 +38,8 @@ void yolov8::Inference::init(const std::string &onnxModelPath, const cv::Size &m
 
 void yolov8::Inference::runInference(const cv::Mat &input, std::vector<Detection> &detections)
 {
+    image_shape_ = input.size();
+
     if (!is_gpu_)
         runCpuInference(input, detections);
     else
@@ -59,22 +60,28 @@ void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detect
 {
     std::vector<std::vector<std::vector<float>>> tmp_model_outputs;
     gpu_inference_.forward(tmp_model_outputs, input);
-    postprocess(detections, convertVector2Mat<float>(tmp_model_outputs))
+    if (tmp_model_outputs.size() != 1) 
+        throw("Error: model_outputs size is not one.");
+    std::vector<cv::Mat> model_outputs{};
+    model_outputs.emplace_back(Vector2Mat<float>(tmp_model_outputs[0], 1, 1));
+    postprocess(detections, model_outputs);
 }
 
 void yolov8::Inference::preprocess(cv::Mat &model_input, const cv::Mat &input)
 {
     if (is_letterbox_for_square_ && model_shape_.width == model_shape_.height)
-        output = formatToSquare(output);
+        model_input = formatToSquare(input);
+
+    image_shape_ = model_input.size();
 }
 
 void yolov8::Inference::forward(std::vector<cv::Mat> &model_outputs, const cv::Mat &model_input)
 {
     cv::Mat blob;
-    cv::dnn::blobFromImage(input, blob, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
+    cv::dnn::blobFromImage(model_input, blob, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
     net_.setInput(blob);
 
-    net_.forward(outputs, net_.getUnconnectedOutLayersNames());
+    net_.forward(model_outputs, net_.getUnconnectedOutLayersNames());
 }
 
 void yolov8::Inference::postprocess(std::vector<Detection>& detections, std::vector<cv::Mat>& model_outputs)
@@ -84,17 +91,17 @@ void yolov8::Inference::postprocess(std::vector<Detection>& detections, std::vec
     // dimensions = BOX_NUM + classes_.size() + keypoints.size() * 2
     // e.g. in our case, dimensions = 4 + 2 + 6 * 2 = 18
     // (1, 18, 6300)
-    int dimensions = outputs[0].size[1];
-    int rows = outputs[0].size[2];
+    int dimensions = model_outputs[0].size[1];
+    int rows = model_outputs[0].size[2];
     // 1: channel; dimensions: rows
-    outputs[0] = outputs[0].reshape(1, dimensions); // (18, 6300)
-    cv::transpose(outputs[0], outputs[0]);          // (6300, 18)
+    model_outputs[0] = model_outputs[0].reshape(1, dimensions); // (18, 6300)
+    cv::transpose(model_outputs[0], model_outputs[0]);          // (6300, 18)
 
-    float *data = (float *)outputs[0].data;
+    float *data = (float *)model_outputs[0].data;
 
-    // convert the model shape to the original image shape
-    float x_factor = modelInput.cols / model_shape_.width;
-    float y_factor = modelInput.rows / model_shape_.height;
+    // used to convert the model shape to the original image shape
+    float x_factor = image_shape_.width / model_shape_.width;
+    float y_factor = image_shape_.height / model_shape_.height;
 
     std::vector<int> class_ids;
     std::vector<float> confidences;
@@ -158,7 +165,7 @@ void yolov8::Inference::postprocess(std::vector<Detection>& detections, std::vec
         result.class_name = classes_[class_ids[idx]];
         result.box = std::move(boxes[idx]);
 
-        float *data_ptr = (float *)outputs[0].data + original_idx * dimensions;
+        float *data_ptr = (float *)model_outputs[0].data + original_idx * dimensions;
         float *kp_ptr = data_ptr + BOX_NUM + classes_.size();
         for (int i = 0; i < kKeyPointsNum; ++i)
         {

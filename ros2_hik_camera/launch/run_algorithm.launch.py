@@ -54,5 +54,6 @@ def generate_launch_description():
         declare_params_file,
         declare_camera_info,
         declare_is_serial_used,
+        declare_is_gpu,
         container
         ])

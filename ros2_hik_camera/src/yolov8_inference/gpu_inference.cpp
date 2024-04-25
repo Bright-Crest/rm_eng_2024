@@ -10,10 +10,19 @@ yolov8_gpu::GpuInference::GpuInference(const std::string &onnxModelPath, const Y
     init(onnxModelPath, config);
 }
 
-yolov8_gpu::GpuInference::init(const std::string &onnxModelPath, const YoloV8Config &config)
-    : PROBABILITY_THRESHOLD(config.probabilityThreshold), NMS_THRESHOLD(config.nmsThreshold), TOP_K(config.topK),
-      SEG_CHANNELS(config.segChannels), SEG_H(config.segH), SEG_W(config.segW), SEGMENTATION_THRESHOLD(config.segmentationThreshold),
-      CLASS_NAMES(config.classNames), NUM_KPS(config.numKPS), KPS_THRESHOLD(config.kpsThreshold) {
+void yolov8_gpu::GpuInference::init(const std::string &onnxModelPath, const YoloV8Config &config)
+{
+    PROBABILITY_THRESHOLD = config.probabilityThreshold; 
+    NMS_THRESHOLD = config.nmsThreshold; 
+    TOP_K = config.topK;
+    SEG_CHANNELS = config.segChannels;
+    SEG_H = config.segH;
+    SEG_W = config.segW;
+    SEGMENTATION_THRESHOLD = config.segmentationThreshold;
+    CLASS_NAMES = config.classNames;
+    NUM_KPS = config.numKPS;
+    KPS_THRESHOLD = config.kpsThreshold;
+
     // Specify options for GPU inference
     // The model only has a single input and use a batch size of 1.
     Options options;

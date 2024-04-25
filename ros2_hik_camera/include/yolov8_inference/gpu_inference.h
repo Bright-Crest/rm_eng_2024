@@ -57,7 +57,7 @@ namespace yolov8_gpu
         GpuInference() = default;
         // Builds the onnx model into a TensorRT engine, and loads the engine into memory
         GpuInference(const std::string &onnxModelPath, const YoloV8Config &config);
-        init(const std::string &onnxModelPath, const YoloV8Config &config);
+        void init(const std::string &onnxModelPath, const YoloV8Config &config);
 
         // Detect the objects in the image
         std::vector<Object> detectObjects(const cv::Mat &inputImageBGR);
@@ -96,22 +96,22 @@ namespace yolov8_gpu
         float m_imgHeight = 0;
 
         // Filter thresholds
-        const float PROBABILITY_THRESHOLD;
-        const float NMS_THRESHOLD;
-        const int TOP_K;
+        float PROBABILITY_THRESHOLD;
+        float NMS_THRESHOLD;
+        int TOP_K;
 
         // Segmentation constants
-        const int SEG_CHANNELS;
-        const int SEG_H;
-        const int SEG_W;
-        const float SEGMENTATION_THRESHOLD;
+        int SEG_CHANNELS;
+        int SEG_H;
+        int SEG_W;
+        float SEGMENTATION_THRESHOLD;
 
         // Object classes as strings
-        const std::vector<std::string> CLASS_NAMES;
+        std::vector<std::string> CLASS_NAMES;
 
         // Pose estimation constant
-        const int NUM_KPS;
-        const float KPS_THRESHOLD;
+        int NUM_KPS;
+        float KPS_THRESHOLD;
 
         // Color list for drawing objects
         const std::vector<std::vector<float>> COLOR_LIST = {{1, 1, 1},

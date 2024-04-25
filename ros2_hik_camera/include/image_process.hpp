@@ -144,8 +144,8 @@ namespace image_process
             std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
             const std::string model_path = package_share_directory + "/model/s_pose_4boxes_12points.onnx";
 
-            is_gpu_ = this->declare_parameter("is_gpu", false);
-            img_processor_.model_.init(model_path, MODEL_INPUT_SHAPE, MODEL_SCORE_THRESHOLD, MODEL_NMS_THRESHOLD, is_gpu_);
+            is_gpu_ = this->declare_parameter("is_gpu", true);
+            img_processor_.model_.init(model_path, is_gpu_, MODEL_INPUT_SHAPE, MODEL_SCORE_THRESHOLD, MODEL_NMS_THRESHOLD);
 
             image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                      std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
