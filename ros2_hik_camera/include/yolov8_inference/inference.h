@@ -16,22 +16,24 @@
 #include <opencv2/dnn.hpp>
 
 // TensorRT GPU Inference
+#ifdef ENABLE_GPU
 #include "gpu_inference.h"
+#endif
 
 // A [x,y,w,h] box takes 4 dimensions
 #define BOX_NUM 4
 
 // TODO: Test these two functions
 // Reference: https://blog.csdn.net/guyuealian/article/details/80253066
-template<typename _Tp>
+template <typename _Tp>
 cv::Mat Vector2Mat(std::vector<_Tp> v, int channels, int rows)
 {
-	cv::Mat mat = cv::Mat(v);                          //将vector变成单列的mat; shallow copy
-	cv::Mat dest = mat.reshape(channels, rows).clone();//PS：必须clone()一份，否则返回出错
-	return dest;
+    cv::Mat mat = cv::Mat(v);                           // 将vector变成单列的mat; shallow copy
+    cv::Mat dest = mat.reshape(channels, rows).clone(); // PS：必须clone()一份，否则返回出错
+    return dest;
 }
 
-template<typename _Tp>
+template <typename _Tp>
 cv::Mat Vector2Mat(std::vector<std::vector<_Tp>> v2d, int channels, int rows)
 {
     cv::Mat mat;
@@ -46,7 +48,7 @@ cv::Mat Vector2Mat(std::vector<std::vector<_Tp>> v2d, int channels, int rows)
             cv::vconcat(mat, Vector2Mat(*vp, 1, 1));
         }
     }
-    
+
     return mat;
 }
 
@@ -103,10 +105,10 @@ namespace yolov8
         void runGpuInference(const cv::Mat &input, std::vector<Detection> &detections);
 
         // for CPU
-        void preprocess(cv::Mat& model_input, const cv::Mat &input);
-        void forward(std::vector<cv::Mat>& model_outputs, const cv::Mat& model_input);
-	// for both CPU and GPU
-        void postprocess(std::vector<Detection>& detections, std::vector<cv::Mat>& model_outputs);
+        void preprocess(cv::Mat &model_input, const cv::Mat &input);
+        void forward(std::vector<cv::Mat> &model_outputs, const cv::Mat &model_input);
+        // for both CPU and GPU
+        void postprocess(std::vector<Detection> &detections, std::vector<cv::Mat> &model_outputs);
 
         void loadClassesFromFile();
         // load into CPU
@@ -114,7 +116,10 @@ namespace yolov8
         cv::Mat formatToSquare(const cv::Mat &source);
 
         bool is_gpu_{};
+
+#ifdef ENABLE_GPU
         yolov8_gpu::GpuInference gpu_inference_{};
+#endif
 
         std::string model_path_{};
         std::string classes_path_{};
@@ -122,7 +127,7 @@ namespace yolov8
         std::vector<std::string> classes_{};
 
         cv::Size2f model_shape_{};
-	cv::Size2f image_shape_{};
+        cv::Size2f image_shape_{};
 
         float model_score_threshold_{0.45f};
         // nms: non_max_suppression

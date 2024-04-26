@@ -4,17 +4,22 @@
 
 #pragma once
 #include "engine.h"
+#include <vector>
 #include <fstream>
 
+#include <opencv2/opencv.hpp>
+
 // Utility method for checking if a file exists on disk
-inline bool doesFileExist(const std::string &name) {
+inline bool doesFileExist(const std::string &name)
+{
     std::ifstream f(name.c_str());
     return f.good();
 }
 
 namespace yolov8_gpu
 {
-    struct Object {
+    struct Object
+    {
         // The object class.
         int label{};
         // The detection's confidence probability.
@@ -29,7 +34,8 @@ namespace yolov8_gpu
 
     // Config the behavior of the GpuInference detector.
     // Can pass these arguments as command line parameters.
-    struct YoloV8Config {
+    struct YoloV8Config
+    {
         // The precision to be used for inference
         Precision precision = Precision::FP16;
         // Calibration data directory. Must be specified when using INT8 precision.
@@ -52,7 +58,8 @@ namespace yolov8_gpu
         std::vector<std::string> classNames = {"0", "1"};
     };
 
-    class GpuInference {
+    class GpuInference
+    {
     public:
         GpuInference() = default;
         // Builds the onnx model into a TensorRT engine, and loads the engine into memory
@@ -67,8 +74,8 @@ namespace yolov8_gpu
         void drawObjectLabels(cv::Mat &image, const std::vector<Object> &objects, unsigned int scale = 2);
 
         // Used as API (only forward the model on GPU, no postprocess)
-        void forward(std::vector<std::vector<std::vector<float>>>& outputs, const cv::Mat &inputImageBGR);
-        void forward(std::vector<std::vector<std::vector<float>>>& outputs, const cv::cuda::GpuMat &inputImageBGR);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImageBGR);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImageBGR);
 
     private:
         // Preprocess the input
@@ -196,17 +203,11 @@ namespace yolov8_gpu
                                                             {0.000, 0.500, 0.500}};
 
         const std::vector<std::vector<unsigned int>> KPS_COLORS = {
-            {0, 255, 0},    {0, 255, 0},    {0, 255, 0},    {0, 255, 0},    {0, 255, 0},   {255, 128, 0},
-            {255, 128, 0},  {255, 128, 0},  {255, 128, 0},  {255, 128, 0},  {255, 128, 0}, {51, 153, 255},
-            {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}};
+            {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}};
 
-        const std::vector<std::vector<unsigned int>> SKELETON = {{16, 14}, {14, 12}, {17, 15}, {15, 13}, {12, 13}, {6, 12}, {7, 13},
-                                                                {6, 7},   {6, 8},   {7, 9},   {8, 10},  {9, 11},  {2, 3},  {1, 2},
-                                                                {1, 3},   {2, 4},   {3, 5},   {4, 6},   {5, 7}};
+        const std::vector<std::vector<unsigned int>> SKELETON = {{16, 14}, {14, 12}, {17, 15}, {15, 13}, {12, 13}, {6, 12}, {7, 13}, {6, 7}, {6, 8}, {7, 9}, {8, 10}, {9, 11}, {2, 3}, {1, 2}, {1, 3}, {2, 4}, {3, 5}, {4, 6}, {5, 7}};
 
         const std::vector<std::vector<unsigned int>> LIMB_COLORS = {
-            {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {255, 51, 255}, {255, 51, 255}, {255, 51, 255},
-            {255, 128, 0},  {255, 128, 0},  {255, 128, 0},  {255, 128, 0},  {255, 128, 0},  {0, 255, 0},    {0, 255, 0},
-            {0, 255, 0},    {0, 255, 0},    {0, 255, 0},    {0, 255, 0},    {0, 255, 0}};
+            {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {51, 153, 255}, {255, 51, 255}, {255, 51, 255}, {255, 51, 255}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {255, 128, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}, {0, 255, 0}};
     };
 } // namespace yolov8_gpu

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.10)
 project(hik_camera)
 
 ## Use C++14
@@ -70,9 +70,9 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
   EXECUTABLE ${VIDEO_CAPTURER}_node
 )
 
-## Cmake : image_process
-## For serial function
-# set(IMAGE_PROCESS image_process)
+# Cmake : image_process
+# For serial function
+ set(IMAGE_PROCESS image_process)
 # ament_auto_add_library(${IMAGE_PROCESS} SHARED 
 #   src/image_process.cpp
 #   src/yolov8_inference/inference.cpp
@@ -81,8 +81,9 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
 
 # >>> for GPU inference >>>
 # TODO: add_compile_definitions
-option(ENABLE_GPU "Enable GPU inference if applicable" ON)
-if (ENABLE_GPU)
+option(ENABLE_GPU "Enable GPU inference if applicable" OFF)
+if (ENABLE_GPU MATCHES ON)
+	MESSAGE("option ENABLE_GPU: ON")
 	set(TENSORRT_CPP_API tensorrt_cpp_api)
 	set(YOLOV8_GPU yolov8_gpu)
 	set(IMAGE_PROCESS image_process)
@@ -164,8 +165,6 @@ if (ENABLE_GPU)
 	target_include_directories(${IMAGE_PROCESS} PUBLIC include/yolov8_inference)
 	# <<< yolov8 gpu inference <<<
 else()
-	set(IMAGE_PROCESS image_process)
-
 	ament_auto_add_library(${IMAGE_PROCESS} SHARED 
 	  src/image_process.cpp
 	  src/yolov8_inference/inference.cpp

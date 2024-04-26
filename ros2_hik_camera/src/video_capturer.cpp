@@ -1,8 +1,10 @@
+/// ROS
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp/utilities.hpp>
 #include <sensor_msgs/msg/image.hpp>
+#include <camera_info_manager/camera_info_manager.hpp>
 
 /// opencv
 #include <opencv2/core/mat.hpp>
@@ -17,6 +19,20 @@ namespace video_capturer
   public:
     explicit VideoCapturerNode(const rclcpp::NodeOptions &options) : Node("video_capturer", options)
     {
+      // load fake camera info
+      camera_name_ = this->declare_parameter("camera_name", "narrow_stereo");
+      camera_info_manager_ = std::make_unique<camera_info_manager::CameraInfoManager>(this, camera_name_);
+      auto camera_info_url =
+          this->declare_parameter("camera_info_url", "package://hik_camera/config/camera_info.yaml");
+      if (camera_info_manager_->validateURL(camera_info_url))
+      {
+        camera_info_manager_->loadCameraInfo(camera_info_url);
+        camera_info_msg_ = camera_info_manager_->getCameraInfo();
+      }
+      else
+      {
+        RCLCPP_WARN(this->get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
+      }
       std::string video_url = this->declare_parameter("video_url", "");
 
       if (video_url.empty())
@@ -102,11 +118,15 @@ namespace video_capturer
     }
 
   private:
+    // fake camera
+    std::string camera_name_;
+    std::unique_ptr<camera_info_manager::CameraInfoManager> camera_info_manager_;
+    sensor_msgs::msg::CameraInfo camera_info_msg_;
+
     cv::VideoCapture cv_cap_;
     int frame_cnt_;
 
     sensor_msgs::msg::Image::SharedPtr image_msg_ptr_;
-    sensor_msgs::msg::CameraInfo camera_info_msg_;
     image_transport::CameraPublisher video_pub_;
 
     std::thread capture_thread_;

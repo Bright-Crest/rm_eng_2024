@@ -1,7 +1,7 @@
 // inference.cpp
 // used for 2 object and 12 key points
 
-#include "inference.h"
+#include "yolov8_inference/inference.h"
 
 yolov8::Inference::Inference(const std::string &onnxModelPath, bool is_gpu, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
 {
@@ -28,11 +28,13 @@ void yolov8::Inference::init(const std::string &onnxModelPath, bool is_gpu, cons
     }
     else
     {
+#ifdef ENABLE_GPU
         yolov8_gpu::YoloV8Config config{};
         config.probabilityThreshold = model_score_threshold_;
         config.nmsThreshold = model_nms_threshold_;
 
         gpu_inference_.init(onnxModelPath, config);
+#endif
     }
 }
 
@@ -59,8 +61,10 @@ void yolov8::Inference::runCpuInference(const cv::Mat &input, std::vector<Detect
 void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detection> &detections)
 {
     std::vector<std::vector<std::vector<float>>> tmp_model_outputs;
+#ifdef ENABLE_GPU
     gpu_inference_.forward(tmp_model_outputs, input);
-    if (tmp_model_outputs.size() != 1) 
+#endif
+    if (tmp_model_outputs.size() != 1)
         throw("Error: model_outputs size is not one.");
     std::vector<cv::Mat> model_outputs{};
     model_outputs.emplace_back(Vector2Mat<float>(tmp_model_outputs[0], 1, 1));
@@ -84,7 +88,7 @@ void yolov8::Inference::forward(std::vector<cv::Mat> &model_outputs, const cv::M
     net_.forward(model_outputs, net_.getUnconnectedOutLayersNames());
 }
 
-void yolov8::Inference::postprocess(std::vector<Detection>& detections, std::vector<cv::Mat>& model_outputs)
+void yolov8::Inference::postprocess(std::vector<Detection> &detections, std::vector<cv::Mat> &model_outputs)
 {
     // yolov8 has an output of shape (batchSize, dimensions, rows)
     // the batch size is usually one; rows do not matter
