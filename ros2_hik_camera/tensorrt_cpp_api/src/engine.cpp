@@ -1,6 +1,3 @@
-// Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
-// Codes are not modified.
-
 #include "engine.h"
 #include <algorithm>
 #include <filesystem>
@@ -53,8 +50,7 @@ Int8EntropyCalibrator2::Int8EntropyCalibrator2(int32_t batchSize, int32_t inputW
     }
 
     // Randomize the calibration data
-    // auto rd = std::random_device{}; // deleted function
-    std::random_device rd{};
+    auto rd = std::random_device{};
     auto rng = std::default_random_engine{rd()};
     std::shuffle(std::begin(m_imgPaths), std::end(m_imgPaths), rng);
 }

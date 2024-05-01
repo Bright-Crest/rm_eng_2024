@@ -81,9 +81,10 @@ rclcpp_components_register_node(${VIDEO_CAPTURER}
 
 # >>> for GPU inference >>>
 # TODO: add_compile_definitions
-option(ENABLE_GPU "Enable GPU inference if applicable" OFF)
+option(ENABLE_GPU "Enable GPU inference if applicable" ON)
 if (ENABLE_GPU MATCHES ON)
 	MESSAGE("option ENABLE_GPU: ON")
+	add_definitions(-DENABLE_GPU)
 	set(TENSORRT_CPP_API tensorrt_cpp_api)
 	set(YOLOV8_GPU yolov8_gpu)
 	set(IMAGE_PROCESS image_process)
@@ -137,7 +138,6 @@ if (ENABLE_GPU MATCHES ON)
 	# target_link_libraries(${IMAGE_PROCESS} ${YOLOV8_GPU})
 
 	# >>> tensorrt_cpp_api >>>
-	 
 	# For finding FindTensorRT.cmake
 	set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${TENSORRT_CPP_API}/cmake" ${CMAKE_MODULE_PATH})
 	 
@@ -161,7 +161,6 @@ if (ENABLE_GPU MATCHES ON)
 	# <<< tensorrt_cpp_api <<<
 	
 	# >>> yolov8 gpu inference >>>
-	 
 	target_include_directories(${IMAGE_PROCESS} PUBLIC include/yolov8_inference)
 	# <<< yolov8 gpu inference <<<
 else()
@@ -172,9 +171,6 @@ else()
 	)
 endif()
 # <<< for GPU inference <<<
-
-# TODO: is this necessary
-# target_include_directories(${IMAGE_PROCESS} PUBLIC include include/yolov8_inference)
 
 if(APPLE) # macOS
     find_library(IOKIT_LIBRARY IOKit)

@@ -1,6 +1,3 @@
-// Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
-// Codes are not modified.
-
 #pragma once
 
 #include "NvInfer.h"
@@ -230,7 +227,9 @@ bool Engine<T>::buildLoadNetwork(std::string onnxModelPath, const std::array<flo
                                  bool normalize) {
     // Only regenerate the engine file if it has not already been generated for
     // the specified options, otherwise load cached version from disk
-    const auto engineName = serializeEngineOptions(m_options, onnxModelPath);
+    // TODO: A not hard-coded way of find the engine file
+    const auto engineName = "/home/nvidia/rm_eng_2024_ws/build/" + serializeEngineOptions(m_options, onnxModelPath);
+
     std::cout << "Searching for engine file with name: " << engineName << std::endl;
 
     if (Util::doesFileExist(engineName)) {
@@ -363,13 +362,10 @@ bool Engine<T>::loadNetwork(std::string trtModelPath, const std::array<float, 3>
             } else if (tensorDataType == nvinfer1::DataType::kUINT8 && !std::is_same<uint8_t, T>::value) {
                 throw std::runtime_error("Error, the model has expected output of type uint8_t. Engine "
                                          "class template parameter must be adjusted.");
-            }
-	    // else if (tensorDataType == nvinfer1::DataType::kFP8) { // kFP8 nonexistent type
+            } 
+	    // else if (tensorDataType == nvinfer1::DataType::kFP8) {
             //   throw std::runtime_error("Error, model has unsupported output type");
             // }
-              else {
-                throw std::runtime_error("Error, model has unsupported output type");
-            }
 
             // The binding is an output
             uint32_t outputLength = 1;
