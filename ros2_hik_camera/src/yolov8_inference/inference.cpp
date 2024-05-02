@@ -60,31 +60,55 @@ void yolov8::Inference::runCpuInference(const cv::Mat &input, std::vector<Detect
 
 void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detection> &detections)
 {
+    cv::Mat model_input;
     std::vector<std::vector<std::vector<float>>> tmp_model_outputs;
+
+    preprocess(model_input, input);
 #ifdef ENABLE_GPU
-    gpu_inference_.forward(tmp_model_outputs, input);
+    gpu_inference_.forward(tmp_model_outputs, model_input);
 #endif
-    if (tmp_model_outputs.size() != 1)
+    if (tmp_model_outputs.size() != 1 || tmp_model_outputs[0].size() != 1)
         throw("Error: model_outputs size is not one.");
+
+    // hard-coded vector to cv::Mat
+    const int channels = 1;
+    const int dimensions = 3;
+    int new_size[dimensions];
+    new_size[0] = 1;
+    new_size[1] = MODEL_DIM;
+    if (tmp_model_outputs[0][0].size() % new_size[1] != 0)
+	throw("Error: model_outputs capacity is not divisible by MODEL_DIM");
+    new_size[2] = tmp_model_outputs[0][0].size() / new_size[0] / new_size[1];
+
+    cv::Mat tmp_mat{};
     std::vector<cv::Mat> model_outputs{};
-    model_outputs.emplace_back(Vector2Mat<float>(tmp_model_outputs[0], 1, 1));
+
+    for (auto &v : tmp_model_outputs[0])
+    {
+	tmp_mat.push_back<float>(v);
+    }
+    model_outputs.push_back(tmp_mat.reshape(channels, dimensions, new_size));
+
     postprocess(detections, model_outputs);
 }
 
 void yolov8::Inference::preprocess(cv::Mat &model_input, const cv::Mat &input)
 {
+    cv::Mat tmp_mat = input;
     if (is_letterbox_for_square_ && model_shape_.width == model_shape_.height)
-        model_input = formatToSquare(input);
+        tmp_mat = formatToSquare(input);
+    image_shape_ = tmp_mat.size();
 
-    image_shape_ = model_input.size();
+    // cv::dnn::blobFromImage(tmp_mat, model_input, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
+    model_input = tmp_mat;
 }
 
 void yolov8::Inference::forward(std::vector<cv::Mat> &model_outputs, const cv::Mat &model_input)
 {
-    cv::Mat blob;
+    cv::Mat blob = model_input;
     cv::dnn::blobFromImage(model_input, blob, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
+    
     net_.setInput(blob);
-
     net_.forward(model_outputs, net_.getUnconnectedOutLayersNames());
 }
 
@@ -93,8 +117,8 @@ void yolov8::Inference::postprocess(std::vector<Detection> &detections, std::vec
     // yolov8 has an output of shape (batchSize, dimensions, rows)
     // the batch size is usually one; rows do not matter
     // dimensions = BOX_NUM + classes_.size() + keypoints.size() * 2
-    // e.g. in our case, dimensions = 4 + 2 + 6 * 2 = 18
-    // (1, 18, 6300)
+    // e.g. in our case, dimensions = 4 + 2 + 3 * 2 = 12
+    // (1, 12, 8400)
     int dimensions = model_outputs[0].size[1];
     int rows = model_outputs[0].size[2];
     // 1: channel; dimensions: rows

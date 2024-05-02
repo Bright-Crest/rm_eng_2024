@@ -1,3 +1,5 @@
+// Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
+
 #pragma once
 
 #include "NvInfer.h"
@@ -240,7 +242,7 @@ bool Engine<T>::buildLoadNetwork(std::string onnxModelPath, const std::array<flo
         }
 
         // Was not able to find the engine file, generate...
-        std::cout << "Engine not found, generating. This could take a while..." << std::endl;
+        std::cout << "Engine not found, generating. This could take a while (maybe 5-20 minutes)..." << std::endl;
 
         // Build the onnx model into a TensorRT engine
         auto ret = build(onnxModelPath, subVals, divVals, normalize);

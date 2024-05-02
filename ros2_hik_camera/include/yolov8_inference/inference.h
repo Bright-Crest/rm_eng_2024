@@ -22,35 +22,12 @@
 
 // A [x,y,w,h] box takes 4 dimensions
 #define BOX_NUM 4
-
-// TODO: Test these two functions
-// Reference: https://blog.csdn.net/guyuealian/article/details/80253066
-template <typename _Tp>
-cv::Mat Vector2Mat(std::vector<_Tp> v, int channels, int rows)
-{
-    cv::Mat mat = cv::Mat(v);                           // 将vector变成单列的mat; shallow copy
-    cv::Mat dest = mat.reshape(channels, rows).clone(); // PS：必须clone()一份，否则返回出错
-    return dest;
-}
-
-template <typename _Tp>
-cv::Mat Vector2Mat(std::vector<std::vector<_Tp>> v2d, int channels, int rows)
-{
-    cv::Mat mat;
-    for (auto vp = v2d.begin(); vp != v2d.end(); vp++)
-    {
-        if (vp == v2d.begin())
-        {
-            mat = Vector2Mat(*vp, 1, 1);
-        }
-        else
-        {
-            cv::vconcat(mat, Vector2Mat(*vp, 1, 1));
-        }
-    }
-
-    return mat;
-}
+// only 2 classes
+#define CLASS_NUM 2
+// 3 points per object
+#define POINT_NUM 3
+// dimensions of the model output (see function postprocess)
+#define MODEL_DIM (BOX_NUM + CLASS_NUM + POINT_NUM * 2)
 
 namespace yolov8
 {

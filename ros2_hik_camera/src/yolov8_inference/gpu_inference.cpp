@@ -65,7 +65,6 @@ std::vector<std::vector<cv::cuda::GpuMat>> yolov8_gpu::GpuInference::preprocess(
     // Resize to the model expected input size while maintaining the aspect ratio with the use of padding
     if (resized.rows != inputDims[0].d[1] || resized.cols != inputDims[0].d[2]) {
         // Only resize if not already the right size to avoid unecessary copy
-        // TODO: will this influence the accuracy of our rotation matrix? Maybe another solution
         resized = Engine<float>::resizeKeepAspectRatioPadRightBottom(rgbMat, inputDims[0].d[1], inputDims[0].d[2]);
     }
 
@@ -501,21 +500,39 @@ void yolov8_gpu::GpuInference::drawObjectLabels(cv::Mat &image, const std::vecto
     }
 }
 
-void yolov8_gpu::GpuInference::forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImageBGR)
+void yolov8_gpu::GpuInference::forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImage)
 {
+    cv::Mat tmp_mat = inputImage;
+
+    // if inputImage is the output of cv::dnn::blobFromImage 
+    // NCHW => HW of channel C
+    if (inputImage.dims == 4 && inputImage.size[0] == 1)
+    {
+	int new_size[2];
+	new_size[0] = inputImage.size[2];
+	new_size[1] = inputImage.size[3];
+	tmp_mat = inputImage.reshape(inputImage.size[1], 2, new_size);
+    }
+
     // Upload the image to GPU memory
     cv::cuda::GpuMat gpuImg;
-    gpuImg.upload(inputImageBGR);
+    gpuImg.upload(tmp_mat);
 
     // Call detectObjects with the GPU image
     forward(outputs, gpuImg);
 }
 
-void yolov8_gpu::GpuInference::forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImageBGR)
+void yolov8_gpu::GpuInference::forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImage)
 {
-    const auto input = preprocess(inputImageBGR);
+    // Convert to format expected by our inference engine
+    // The reason for the strange format is because it supports models with multiple inputs as well as batching
+    // In our case though, the model only has a single input and we are using a batch size of 1.
+    // std::vector<cv::cuda::GpuMat> input{std::move(inputImage)};
+    // std::vector<std::vector<cv::cuda::GpuMat>> inputs{std::move(input)};
 
-    auto succ = m_trtEngine->runInference(input, outputs);
+    const auto inputs = preprocess(inputImage);
+    
+    auto succ = m_trtEngine->runInference(inputs, outputs);
     
     if (!succ) {
         throw std::runtime_error("Error: Unable to run inference.");

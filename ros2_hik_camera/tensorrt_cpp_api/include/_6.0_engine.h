@@ -1,5 +1,4 @@
 // Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
-// Codes are not modified.
 
 #pragma once
 

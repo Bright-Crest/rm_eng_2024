@@ -74,8 +74,8 @@ namespace yolov8_gpu
         void drawObjectLabels(cv::Mat &image, const std::vector<Object> &objects, unsigned int scale = 2);
 
         // Used as API (only forward the model on GPU, no postprocess)
-        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImageBGR);
-        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImageBGR);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImage);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImage);
 
     private:
         // Preprocess the input
