@@ -91,6 +91,7 @@ if (ENABLE_GPU MATCHES ON)
 
 	ament_auto_add_library(${IMAGE_PROCESS} SHARED 
 	  src/image_process.cpp
+	  src/image_process_node.cpp
 	  ${TENSORRT_CPP_API}/src/engine.cpp
 	  src/yolov8_inference/gpu_inference.cpp
 	  src/yolov8_inference/inference.cpp
@@ -166,6 +167,7 @@ if (ENABLE_GPU MATCHES ON)
 else()
 	ament_auto_add_library(${IMAGE_PROCESS} SHARED 
 	  src/image_process.cpp
+	  src/image_process_node.cpp
 	  src/yolov8_inference/inference.cpp
 	  src/serial/serial.cc
 	)
