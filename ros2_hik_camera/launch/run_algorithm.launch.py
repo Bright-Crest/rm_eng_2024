@@ -44,7 +44,8 @@ def generate_launch_description():
                 plugin = 'image_process::ImageProcessNode',
                 name = 'image_process_node',
                 parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')},
-                             {'is_gpu':LaunchConfiguration('is_gpu')}],
+                             {'is_gpu':LaunchConfiguration('is_gpu')},
+                             {'is_debug':LaunchConfiguration('is_debug')}],
                 extra_arguments=[{'use_intra_process_comms': True}]
             )
         ],
