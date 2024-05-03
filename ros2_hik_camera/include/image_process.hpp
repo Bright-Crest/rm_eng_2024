@@ -32,6 +32,14 @@
 #define MODEL_SCORE_THRESHOLD   0.45f
 #define MODEL_NMS_THRESHOLD     0.50f
 
+// only for GPU inference
+// Number of points per object
+#define POINT_NUM               3
+// TODO: specify the directory to generate or find the engine file
+#define ENGINE_DIR              "/home/nvidia/rm_eng_2024_ws/build"
+// The precision to be used for inference
+#define PRECISION               Precision::FP16
+
 namespace ExchangeInfo
 {
     static const std::string Special_Corner_Tag = "0";
@@ -145,7 +153,20 @@ namespace image_process
             const std::string model_path = package_share_directory + "/model/n_pose_4boxes_12points.onnx";
 
             is_gpu_ = this->declare_parameter("is_gpu", true);
-            img_processor_.model_.init(model_path, is_gpu_, MODEL_INPUT_SHAPE, MODEL_SCORE_THRESHOLD, MODEL_NMS_THRESHOLD);
+            yolov8::YoloV8Config config{};
+            config.is_gpu = is_gpu_;
+            config.model_input_shape = MODEL_INPUT_SHAPE;
+            config.model_score_threshold = MODEL_SCORE_THRESHOLD;
+            config.model_nms_threshold = MODEL_NMS_THRESHOLD;
+            config.is_letterbox_for_square = true;
+            config.classes.push_back(ExchangeInfo::Special_Corner_Tag);
+            config.classes.push_back(ExchangeInfo::Normal_Corner_Tag);
+            config.point_num = POINT_NUM;
+            config.engineDirectory = ENGINE_DIR;
+#ifdef ENABLE_GPU
+            config.precision = PRECISION;
+#endif 
+            img_processor_.model_.init(model_path, config);
 
             image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                      std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),

@@ -1,26 +1,33 @@
 // inference.cpp
-// used for 2 object and 12 key points
+// Used for yolov8 pose models
+// Currently used for 2 object and 3 points per object
 
 #include "yolov8_inference/inference.h"
 
-yolov8::Inference::Inference(const std::string &onnxModelPath, bool is_gpu, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
+yolov8::Inference::Inference(const std::string &onnxModelPath, const YoloV8Config &config)
 {
-    init(onnxModelPath, is_gpu, modelInputShape, modelScoreThreshold, modelNMSThreshold, classesTxtFile);
+    init(onnxModelPath, config);
 }
 
-void yolov8::Inference::init(const std::string &onnxModelPath, bool is_gpu, const cv::Size &modelInputShape, const float &modelScoreThreshold, const float &modelNMSThreshold, const std::string &classesTxtFile)
+void yolov8::Inference::init(const std::string &onnxModelPath, const YoloV8Config &config)
 {
     model_path_ = onnxModelPath;
-    model_shape_ = modelInputShape;
-    model_score_threshold_ = modelScoreThreshold;
-    model_nms_threshold_ = modelNMSThreshold;
-    classes_path_ = classesTxtFile;
-    is_gpu_ = is_gpu;
+    is_gpu_ = config.is_gpu;
+    model_shape_ = config.model_input_shape;
+    model_score_threshold_ = config.model_score_threshold;
+    model_nms_threshold_ = config.model_nms_threshold;
+    is_letterbox_for_square_ = config.is_letterbox_for_square;
 
-    if (classes_path_ == "")
-        classes_ = {"0", "1"};
+    // determine classes
+    if (!config.classes_txt_file.empty())
+        loadClassesFromFile(config.classes_txt_file);
+    else if (!config.classes.empty())
+        classes_ = config.classes;
+    else if (config.class_num > 0)
+        for (int i = 0; i < config.class_num; i++)
+            classes_.push_back(std::to_string(i));
     else
-        loadClassesFromFile();
+        throw("Error: classes of the model must be provided");
 
     if (!is_gpu_)
     {
@@ -28,12 +35,15 @@ void yolov8::Inference::init(const std::string &onnxModelPath, bool is_gpu, cons
     }
     else
     {
+        point_num_ = config.point_num;
 #ifdef ENABLE_GPU
-        yolov8_gpu::YoloV8Config config{};
-        config.probabilityThreshold = model_score_threshold_;
-        config.nmsThreshold = model_nms_threshold_;
+        yolov8_gpu::YoloV8GpuConfig gpu_config{};
+        gpu_config.precision = config.precision;
+        gpu_config.calibrationDataDirectory = config.calibrationDataDirectory;
+        gpu_config.probabilityThreshold = config.model_score_threshold;
+        gpu_config.engineDirectory = config.engineDirectory;
 
-        gpu_inference_.init(onnxModelPath, config);
+        gpu_inference_.init(onnxModelPath, gpu_config);
 #endif
     }
 }
@@ -68,16 +78,17 @@ void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detect
     gpu_inference_.forward(tmp_model_outputs, model_input);
 #endif
     if (tmp_model_outputs.size() != 1 || tmp_model_outputs[0].size() != 1)
-        throw("Error: model_outputs size is not one.");
+        throw("Error: the size of model outputs of gpu inference is wrong.");
 
-    // hard-coded vector to cv::Mat
-    const int channels = 1;
-    const int dimensions = 3;
+    // Hard-coded: vector (1, 1, 100800) to cv::Mat (1, 12, 8400)
+    static const int channels = 1;
+    static const int dimensions = 3;
     int new_size[dimensions];
     new_size[0] = 1;
-    new_size[1] = MODEL_DIM;
-    if (tmp_model_outputs[0][0].size() % new_size[1] != 0)
-	throw("Error: model_outputs capacity is not divisible by MODEL_DIM");
+    // go to function postprocess for explanation
+    new_size[1] = BOX_NUM + classes_.size() + point_num_ * 2;
+    if (tmp_model_outputs[0][0].size() % new_size[0] != 0 || tmp_model_outputs[0][0].size() % new_size[1] != 0)
+        throw("Error: the capacity of model outputs is not divisible");
     new_size[2] = tmp_model_outputs[0][0].size() / new_size[0] / new_size[1];
 
     cv::Mat tmp_mat{};
@@ -85,7 +96,7 @@ void yolov8::Inference::runGpuInference(const cv::Mat &input, std::vector<Detect
 
     for (auto &v : tmp_model_outputs[0])
     {
-	tmp_mat.push_back<float>(v);
+        tmp_mat.push_back<float>(v);
     }
     model_outputs.push_back(tmp_mat.reshape(channels, dimensions, new_size));
 
@@ -99,6 +110,7 @@ void yolov8::Inference::preprocess(cv::Mat &model_input, const cv::Mat &input)
         tmp_mat = formatToSquare(input);
     image_shape_ = tmp_mat.size();
 
+    // TODO: why does this fail for GPU inference?
     // cv::dnn::blobFromImage(tmp_mat, model_input, 1.0 / 255.0, model_shape_, cv::Scalar(), true, false);
     model_input = tmp_mat;
 }
@@ -206,9 +218,9 @@ void yolov8::Inference::postprocess(std::vector<Detection> &detections, std::vec
     }
 }
 
-void yolov8::Inference::loadClassesFromFile()
+void yolov8::Inference::loadClassesFromFile(const std::string &classes_path)
 {
-    std::ifstream inputFile(classes_path_);
+    std::ifstream inputFile(classes_path);
     if (inputFile.is_open())
     {
         std::string classLine;

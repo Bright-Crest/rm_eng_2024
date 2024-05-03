@@ -5,12 +5,12 @@
 #include "gpu_inference.h"
 #include <opencv2/cudaimgproc.hpp>
 
-yolov8_gpu::GpuInference::GpuInference(const std::string &onnxModelPath, const YoloV8Config &config)
+yolov8_gpu::GpuInference::GpuInference(const std::string &onnxModelPath, const YoloV8GpuConfig &config)
 {
     init(onnxModelPath, config);
 }
 
-void yolov8_gpu::GpuInference::init(const std::string &onnxModelPath, const YoloV8Config &config)
+void yolov8_gpu::GpuInference::init(const std::string &onnxModelPath, const YoloV8GpuConfig &config)
 {
     PROBABILITY_THRESHOLD = config.probabilityThreshold; 
     NMS_THRESHOLD = config.nmsThreshold; 
@@ -31,6 +31,8 @@ void yolov8_gpu::GpuInference::init(const std::string &onnxModelPath, const Yolo
 
     options.precision = config.precision;
     options.calibrationDataDirectoryPath = config.calibrationDataDirectory;
+
+    options.engineDirectory = config.engineDirectory;
 
     if (options.precision == Precision::INT8) {
         if (options.calibrationDataDirectoryPath.empty()) {
@@ -65,6 +67,7 @@ std::vector<std::vector<cv::cuda::GpuMat>> yolov8_gpu::GpuInference::preprocess(
     // Resize to the model expected input size while maintaining the aspect ratio with the use of padding
     if (resized.rows != inputDims[0].d[1] || resized.cols != inputDims[0].d[2]) {
         // Only resize if not already the right size to avoid unecessary copy
+        // TODO: what does this do?
         resized = Engine<float>::resizeKeepAspectRatioPadRightBottom(rgbMat, inputDims[0].d[1], inputDims[0].d[2]);
     }
 
