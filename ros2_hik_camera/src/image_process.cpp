@@ -6,8 +6,12 @@
 
 namespace image_process
 {
+  const std::vector<cv::Point3f> ImageProcessor::object_points_{
+      {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
+  // the right plate
+  const std::vector<cv::Point3f> ImageProcessor::side_plate_object_points_{
+      {144.0f, SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}, {144.0f, 0, SIDE_LEN_B}, {144.0f, -SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}};
 
-  /// @details check classes and then take the special point(with 2 gaps) as the first and push others counterclockwise
   bool ImageProcessor::DetermineAbitraryPointsOrder(const std::vector<cv::Point2f> &whole_points, const std::vector<std::string> &classes, std::vector<int> &order)
   {
     // 3 key points(whole points) corresponding to 1 bounding box(class)
@@ -325,21 +329,13 @@ namespace image_process
     if (add_order)
     {
       for (unsigned int i = 0; i < image_points_.size(); ++i)
-      {
         cv::putText(img, std::to_string(i), image_points_[i], cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(255, 0, 255), 2);
-      }
     }
     if (add_points)
     {
       for (auto &point : image_points_)
-      {
         cv::circle(img, point, 5, cv::Scalar(255, 0, 255), 3);
-      }
     }
   }
 
 } // namespace image_process
-
-#include "rclcpp_components/register_node_macro.hpp"
-
-RCLCPP_COMPONENTS_REGISTER_NODE(image_process::ImageProcessNode)
