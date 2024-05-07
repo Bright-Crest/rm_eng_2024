@@ -80,8 +80,6 @@ namespace image_process
 
     public:
         ImageProcessor() = default;
-        ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 640},
-                       const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f, bool is_gpu = false);
         ~ImageProcessor() = default;
 
         /// @brief get camera_matrix and distortion_coefficients from the first frame

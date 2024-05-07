@@ -45,7 +45,7 @@ namespace image_process
     }
 
     // start to calculate the order of the corner
-    float threshold = 0.1;
+    float threshold = 0.08;
     std::vector<std::pair<float, int>> angles_and_indices{};
     order.clear();
     if (special_corner_count == 1)
@@ -122,12 +122,6 @@ namespace image_process
     return true;
   }
 
-  ImageProcessor::ImageProcessor(const std::string &model_path, const cv::Size &model_shape,
-                                 const float &model_score_threshold, const float &model_nms_threshold, bool is_gpu)
-  {
-    model_.init(model_path, is_gpu, model_shape, model_score_threshold, model_nms_threshold);
-  }
-
   void ImageProcessor::GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info)
   {
     for (unsigned int i = 0; i < camera_info->k.size(); ++i)
@@ -169,7 +163,7 @@ namespace image_process
 
     for (auto &detection : predict_result_)
     {
-      if (detection.confidence < 0.75)
+      if (detection.confidence < 0.65)
         continue;
       // 1: outermost point
       whole_required_points.emplace_back(detection.keypoints[0]);

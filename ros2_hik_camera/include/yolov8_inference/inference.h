@@ -90,7 +90,7 @@ namespace yolov8
 #endif
         // Calibration data directory. Must be specified only when using INT8 precision.
         std::string calibrationDataDirectory;
-    }
+    };
 
     class Inference
     {

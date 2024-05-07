@@ -21,6 +21,8 @@ def generate_launch_description():
                           default_value = 'false')
     declare_is_gpu = DeclareLaunchArgument(name = 'is_gpu',
                           default_value = 'true')
+    declare_is_debug = DeclareLaunchArgument(name = 'is_debug',
+                          default_value = 'true')
     declare_params_file =  DeclareLaunchArgument(name='params_file',
                               default_value=params_file)
     declare_camera_info =  DeclareLaunchArgument(name='camera_info_url',
@@ -57,5 +59,6 @@ def generate_launch_description():
         declare_camera_info,
         declare_is_serial_used,
         declare_is_gpu,
+        declare_is_debug,
         container
         ])
