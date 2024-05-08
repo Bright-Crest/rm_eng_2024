@@ -44,7 +44,7 @@ namespace image_process
         config.classes.push_back(ExchangeInfo::Special_Corner_Tag);
         config.classes.push_back(ExchangeInfo::Normal_Corner_Tag);
         config.point_num = POINT_NUM;
-        config.engineDirectory = this->declare_parameter("engine_dir", "package://hik_camera/");
+        config.engineDirectory = this->declare_parameter("engine_dir", package_share_directory);
 #ifdef ENABLE_GPU
         config.precision = PRECISION;
 #endif 
@@ -87,7 +87,7 @@ namespace image_process
                                                       send_data_buffer[2] = 12;
                                                       for (int i = 0; i < 3; ++i)
                                                       {
-                                                          uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
+                                                          int16_t send_temp = img_processor_.getTvec()[i] * 10.f;
                                                           send_data_buffer[2 * i + pack_offset] = send_temp;
                                                           send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
                                                           send_temp = img_processor_.getRvec()[i] * 10000.f;
