@@ -44,7 +44,7 @@ namespace image_process
         config.classes.push_back(ExchangeInfo::Special_Corner_Tag);
         config.classes.push_back(ExchangeInfo::Normal_Corner_Tag);
         config.point_num = POINT_NUM;
-        config.engineDirectory = ENGINE_DIR;
+        config.engineDirectory = this->declare_parameter("engine_dir", "package://hik_camera/");
 #ifdef ENABLE_GPU
         config.precision = PRECISION;
 #endif 

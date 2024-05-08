@@ -149,11 +149,6 @@ if (ENABLE_GPU MATCHES ON)
 	# Use the correct version of CUDA
 	set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
 	 
-	# Suppress some warnings of find_package CUDA 
-	if(POLICY CMP0146)
-	cmake_policy(SET CMP0146 OLD) 
-	endif()
-	 
 	find_package(TensorRT REQUIRED)
 	find_package(CUDA REQUIRED)
 	 

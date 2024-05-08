@@ -36,7 +36,6 @@
 // Number of points per object
 #define POINT_NUM               3
 // TODO: specify the directory to generate or find the engine file
-#define ENGINE_DIR              "/home/nvidia/rm_eng_2024_ws/build"
 // The precision to be used for inference
 #define PRECISION               Precision::FP16
 

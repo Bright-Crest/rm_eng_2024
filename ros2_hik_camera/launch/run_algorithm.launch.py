@@ -27,6 +27,8 @@ def generate_launch_description():
                               default_value=params_file)
     declare_camera_info =  DeclareLaunchArgument(name='camera_info_url',
                               default_value=camera_info_url)
+    declare_engine_dir =  DeclareLaunchArgument(name='engine_dir',
+                              default_value='package://hik_camera/')
 
     container = ComposableNodeContainer(
         name = 'Vision_Component_Container',
@@ -47,7 +49,8 @@ def generate_launch_description():
                 name = 'image_process_node',
                 parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')},
                              {'is_gpu':LaunchConfiguration('is_gpu')},
-                             {'is_debug':LaunchConfiguration('is_debug')}],
+                             {'is_debug':LaunchConfiguration('is_debug')},
+                             {'engine_dir':LaunchConfiguration('engine_dir')}],
                 extra_arguments=[{'use_intra_process_comms': True}]
             )
         ],
@@ -60,5 +63,6 @@ def generate_launch_description():
         declare_is_serial_used,
         declare_is_gpu,
         declare_is_debug,
+        declare_engine_dir,
         container
         ])
