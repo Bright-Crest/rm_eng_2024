@@ -34,7 +34,7 @@ namespace yolov8_gpu
 
     // Config the behavior of the GpuInference detector.
     // Can pass these arguments as command line parameters.
-    struct YoloV8Config
+    struct YoloV8GpuConfig
     {
         // The precision to be used for inference
         Precision precision = Precision::FP16;
@@ -55,7 +55,9 @@ namespace yolov8_gpu
         int numKPS = 17;
         float kpsThreshold = 0.5f;
         // Class thresholds
-        std::vector<std::string> classNames = {"0", "1"};
+        std::vector<std::string> classNames;
+        // the directory to generate or find the engine file 
+        std::string engineDirectory = "";
     };
 
     class GpuInference
@@ -63,8 +65,8 @@ namespace yolov8_gpu
     public:
         GpuInference() = default;
         // Builds the onnx model into a TensorRT engine, and loads the engine into memory
-        GpuInference(const std::string &onnxModelPath, const YoloV8Config &config);
-        void init(const std::string &onnxModelPath, const YoloV8Config &config);
+        GpuInference(const std::string &onnxModelPath, const YoloV8GpuConfig &config);
+        void init(const std::string &onnxModelPath, const YoloV8GpuConfig &config);
 
         // Detect the objects in the image
         std::vector<Object> detectObjects(const cv::Mat &inputImageBGR);
@@ -74,8 +76,8 @@ namespace yolov8_gpu
         void drawObjectLabels(cv::Mat &image, const std::vector<Object> &objects, unsigned int scale = 2);
 
         // Used as API (only forward the model on GPU, no postprocess)
-        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImageBGR);
-        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImageBGR);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::Mat &inputImage);
+        void forward(std::vector<std::vector<std::vector<float>>> &outputs, const cv::cuda::GpuMat &inputImage);
 
     private:
         // Preprocess the input

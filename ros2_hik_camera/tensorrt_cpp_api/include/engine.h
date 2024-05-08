@@ -1,3 +1,5 @@
+// Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
+
 #pragma once
 
 #include "NvInfer.h"
@@ -77,6 +79,8 @@ struct Options {
     int32_t maxBatchSize = 16;
     // GPU device index
     int deviceIndex = 0;
+    // the directory to generate or find the engine file 
+    std::string engineDirectory = "";
 };
 
 // Class used for int8 calibration
@@ -227,8 +231,7 @@ bool Engine<T>::buildLoadNetwork(std::string onnxModelPath, const std::array<flo
                                  bool normalize) {
     // Only regenerate the engine file if it has not already been generated for
     // the specified options, otherwise load cached version from disk
-    // TODO: A not hard-coded way of find the engine file
-    const auto engineName = "/home/nvidia/rm_eng_2024_ws/build/" + serializeEngineOptions(m_options, onnxModelPath);
+    const auto engineName = serializeEngineOptions(m_options, onnxModelPath);
 
     std::cout << "Searching for engine file with name: " << engineName << std::endl;
 
@@ -240,7 +243,7 @@ bool Engine<T>::buildLoadNetwork(std::string onnxModelPath, const std::array<flo
         }
 
         // Was not able to find the engine file, generate...
-        std::cout << "Engine not found, generating. This could take a while..." << std::endl;
+        std::cout << "Engine not found, generating. This could take a while (maybe 5-20 minutes)..." << std::endl;
 
         // Build the onnx model into a TensorRT engine
         auto ret = build(onnxModelPath, subVals, divVals, normalize);
@@ -743,6 +746,14 @@ template <typename T> std::string Engine<T>::serializeEngineOptions(const Option
 
     engineName += "." + std::to_string(options.maxBatchSize);
     engineName += "." + std::to_string(options.optBatchSize);
+
+    if (!options.engineDirectory.empty())
+    {
+        if (options.engineDirectory.back() == '/')
+            engineName = options.engineDirectory + engineName;
+        else
+            engineName = options.engineDirectory + "/" + engineName;
+    }
 
     return engineName;
 }

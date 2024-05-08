@@ -21,6 +21,8 @@ def generate_launch_description():
                           default_value = 'false')
     declare_is_gpu = DeclareLaunchArgument(name = 'is_gpu',
                           default_value = 'true')
+    declare_is_debug = DeclareLaunchArgument(name = 'is_debug',
+                          default_value = 'true')
     declare_params_file =  DeclareLaunchArgument(name='params_file',
                               default_value=params_file)
     declare_camera_info =  DeclareLaunchArgument(name='camera_info_url',
@@ -44,7 +46,9 @@ def generate_launch_description():
                 plugin = 'image_process::ImageProcessNode',
                 name = 'image_process_node',
                 parameters =[{'is_serial_used':LaunchConfiguration('is_serial_used')},
-                             {'is_debug':LaunchConfiguration('is_debug')}],
+                             {'is_gpu':LaunchConfiguration('is_gpu')},
+                             {'is_debug':LaunchConfiguration('is_debug')}
+],
                 extra_arguments=[{'use_intra_process_comms': True}]
             )
         ],
@@ -56,5 +60,6 @@ def generate_launch_description():
         declare_camera_info,
         declare_is_serial_used,
         declare_is_gpu,
+        declare_is_debug,
         container
         ])

@@ -33,9 +33,22 @@ namespace image_process
 
         // may throw ament_index_cpp::PackageNotFoundError exception
         std::string package_share_directory = ament_index_cpp::get_package_share_directory("hik_camera");
-        const std::string model_path = package_share_directory + "/model/s_pose_4boxes_12points.onnx";
+        const std::string model_path = package_share_directory + "/model/n_pose_4boxes_12points.onnx";
 
-        img_processor_.model_.init(model_path, is_gpu_, MODEL_INPUT_SHAPE, MODEL_SCORE_THRESHOLD, MODEL_NMS_THRESHOLD);
+        yolov8::YoloV8Config config{};
+        config.is_gpu = is_gpu_;
+        config.model_input_shape = MODEL_INPUT_SHAPE;
+        config.model_score_threshold = MODEL_SCORE_THRESHOLD;
+        config.model_nms_threshold = MODEL_NMS_THRESHOLD;
+        config.is_letterbox_for_square = true;
+        config.classes.push_back(ExchangeInfo::Special_Corner_Tag);
+        config.classes.push_back(ExchangeInfo::Normal_Corner_Tag);
+        config.point_num = POINT_NUM;
+        config.engineDirectory = this->declare_parameter("engine_dir", package_share_directory);
+#ifdef ENABLE_GPU
+        config.precision = PRECISION;
+#endif 
+        img_processor_.model_.init(model_path, config);
 
         image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
                                                                  std::bind(&ImageProcessNode::imageCallback, this, std::placeholders::_1, std::placeholders::_2),
@@ -74,7 +87,7 @@ namespace image_process
                                                       send_data_buffer[2] = 12;
                                                       for (int i = 0; i < 3; ++i)
                                                       {
-                                                          uint16_t send_temp = img_processor_.getTvec()[i] * 10.f;
+                                                          int16_t send_temp = img_processor_.getTvec()[i] * 10.f;
                                                           send_data_buffer[2 * i + pack_offset] = send_temp;
                                                           send_data_buffer[2 * i + 1 + pack_offset] = send_temp >> 8;
                                                           send_temp = img_processor_.getRvec()[i] * 10000.f;

@@ -1,5 +1,4 @@
 // Reference: https://github.com/cyrusbehr/tensorrt-cpp-api?tab=readme-ov-file
-// Codes are not modified.
 
 #pragma once
 
@@ -80,6 +79,8 @@ struct Options {
     int32_t maxBatchSize = 16;
     // GPU device index
     int deviceIndex = 0;
+    // the directory to generate or find the engine file
+    std::string engineDirectory = "";
 };
 
 // Class used for int8 calibration
@@ -364,7 +365,7 @@ bool Engine<T>::loadNetwork(std::string trtModelPath, const std::array<float, 3>
                 throw std::runtime_error("Error, the model has expected output of type uint8_t. Engine "
                                          "class template parameter must be adjusted.");
             }
-	    // else if (tensorDataType == nvinfer1::DataType::kFP8) { // kFP8 nonexistent type
+	        // else if (tensorDataType == nvinfer1::DataType::kFP8) { // kFP8 nonexistent type
             //   throw std::runtime_error("Error, model has unsupported output type");
             // }
 
@@ -494,9 +495,6 @@ bool Engine<T>::build(std::string onnxModelPath, const std::array<float, 3> &sub
     }
     config->addOptimizationProfile(optProfile);
 
-    // TODO: DEBUG
-    std::cout << "Set the precision level" << std::endl;
-    
     // Set the precision level
     const auto engineName = serializeEngineOptions(m_options, onnxModelPath);
     if (m_options.precision == Precision::FP16) {
@@ -540,9 +538,6 @@ bool Engine<T>::build(std::string onnxModelPath, const std::array<float, 3> &sub
     Util::checkCudaErrorCode(cudaStreamCreate(&profileStream));
     config->setProfileStream(profileStream);
 
-    // TODO: DEBUG
-    std::cout << "Start building the engine" << std::endl;
-
     // Build the engine
     // If this call fails, it is suggested to increase the logger verbosity to
     // kVERBOSE and try rebuilding the engine. Doing so will provide you with more
@@ -551,9 +546,6 @@ bool Engine<T>::build(std::string onnxModelPath, const std::array<float, 3> &sub
     if (!plan) {
         return false;
     }
-
-    // TODO: DEBUG
-    std::cout << "Finish building the engine. Start writing the engine to disk" << std::endl;
 
     // Write the engine to disk
     std::ofstream outfile(engineName, std::ofstream::binary);
@@ -753,6 +745,14 @@ template <typename T> std::string Engine<T>::serializeEngineOptions(const Option
 
     engineName += "." + std::to_string(options.maxBatchSize);
     engineName += "." + std::to_string(options.optBatchSize);
+
+    if (!options.engineDirectory.empty())
+    {
+        if (options.engineDirectory.back() == '/')
+            engineName = options.engineDirectory + engineName;
+        else
+            engineName = options.engineDirectory + "/" + engineName;
+    }
 
     return engineName;
 }

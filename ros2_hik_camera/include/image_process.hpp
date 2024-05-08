@@ -32,6 +32,13 @@
 #define MODEL_SCORE_THRESHOLD 0.45f
 #define MODEL_NMS_THRESHOLD 0.50f
 
+// only for GPU inference
+// Number of points per object
+#define POINT_NUM               3
+// TODO: specify the directory to generate or find the engine file
+// The precision to be used for inference
+#define PRECISION               Precision::FP16
+
 namespace ExchangeInfo
 {
     static const std::string Special_Corner_Tag = "0";
@@ -72,8 +79,6 @@ namespace image_process
 
     public:
         ImageProcessor() = default;
-        ImageProcessor(const std::string &model_path, const cv::Size &model_shape = {640, 640},
-                       const float &model_score_threshold = 0.45f, const float &model_nms_threshold = 0.50f, bool is_gpu = false);
         ~ImageProcessor() = default;
 
         /// @brief get camera_matrix and distortion_coefficients from the first frame
