@@ -211,7 +211,7 @@ target_link_libraries(${VIDEO_RECORDER}
   ${OpenCV_LIBS}
 )
 rclcpp_components_register_node(${VIDEO_RECORDER}
-  PLUGIN video_recorder::VideoRecoderNode 
+  PLUGIN video_recorder::VideoRecorderNode 
   EXECUTABLE ${VIDEO_RECORDER}_node
 )
 

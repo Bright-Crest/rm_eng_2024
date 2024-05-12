@@ -4,7 +4,7 @@
 
 namespace video_recorder
 {
-    VideoRecorderNode::VideoRecorderNode(const rclcpp::NodeOptions &options) : Node("image_process", options)
+    VideoRecorderNode::VideoRecorderNode(const rclcpp::NodeOptions &options) : Node("video_recorder", options)
     {
         bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
         auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
@@ -53,8 +53,8 @@ namespace video_recorder
         }
         catch (const cv_bridge::Exception &e)
         {
-            auto logger = rclcpp::get_logger("ImageProcess Error");
-            RCLCPP_ERROR(logger, "Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+            auto logger = rclcpp::get_logger("VideoRecorder Error");
+            RCLCPP_ERROR(logger, "Could not convert from '%s' to 'rgb8'.", msg->encoding.c_str());
         }
     }
 } // namespace video_recorder
