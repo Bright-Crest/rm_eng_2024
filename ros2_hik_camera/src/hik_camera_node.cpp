@@ -45,8 +45,8 @@ namespace hik_camera
       image_msg_.data.reserve(img_info_.nHeightMax * img_info_.nWidthMax * 3);
 
       // Init convert param
-      ConvertParam_.nWidth = 1280;
-      ConvertParam_.nHeight = 768;
+      ConvertParam_.nWidth = img_info_.nWidthMax;
+      ConvertParam_.nHeight = img_info_.nHeightMax;
       ConvertParam_.enDstPixelType = PixelType_Gvsp_RGB8_Packed;
 
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
@@ -83,7 +83,7 @@ namespace hik_camera
 
         // 设置视频编解码器和输出文件名
         int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
-        cv::Size frame_size(ConvertParam_.nWidth, ConvertParam_.nHeight);
+        cv::Size frame_size(1280, 768);
         out_ = cv::VideoWriter(output_file, fourcc, 30.0, frame_size);
       }
 

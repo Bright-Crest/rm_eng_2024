@@ -14,7 +14,7 @@ namespace image_process
         if (is_serial_used_)
         {
             transport_serial_.setPort("/dev/ttyUSB0");
-            transport_serial_.setBaudrate(115200);
+            transport_serial_.setBaudrate(9600);
             serial::Timeout _time = serial::Timeout::simpleTimeout(2000);
             transport_serial_.setTimeout(_time);
             transport_serial_.setStopbits(serial::stopbits_one);
