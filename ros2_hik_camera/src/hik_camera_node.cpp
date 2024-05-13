@@ -50,7 +50,6 @@ namespace hik_camera
       ConvertParam_.enDstPixelType = PixelType_Gvsp_RGB8_Packed;
 
       bool use_sensor_data_qos = this->declare_parameter("use_sensor_data_qos", false);
-      bool use_record = this->declare_parameter("use_record", false);
       auto qos = use_sensor_data_qos ? rmw_qos_profile_sensor_data : rmw_qos_profile_default;
       camera_pub_ = image_transport::create_camera_publisher(this, "image_raw", qos);
 
@@ -73,27 +72,12 @@ namespace hik_camera
         RCLCPP_WARN(this->get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
       }
 
-      if (use_record)
-      {
-        std::time_t current_time = std::time(nullptr);
-        std::tm *local_time = std::localtime(&current_time);
-        std::stringstream filename_stream;
-        filename_stream << std::put_time(local_time, "%Y-%m-%d_%H-%M-%S") << ".avi";
-        std::string output_file = filename_stream.str();
-
-        // 设置视频编解码器和输出文件名
-        int fourcc = cv::VideoWriter::fourcc('M', 'J', 'P', 'G');
-        cv::Size frame_size(1280, 768);
-        out_ = cv::VideoWriter(output_file, fourcc, 30.0, frame_size);
-      }
-
       params_callback_handle_ = this->add_on_set_parameters_callback(
           std::bind(&HikCameraNode::parametersCallback, this, std::placeholders::_1));
 
-      capture_thread_ = std::thread{[this, use_record]() -> void
+      capture_thread_ = std::thread{[this]() -> void
                                     {
                                       MV_FRAME_OUT OutFrame;
-                                      cv_bridge::CvImagePtr cv_image;
 
                                       RCLCPP_INFO(this->get_logger(), "Publishing image!");
 
@@ -123,12 +107,6 @@ namespace hik_camera
                                           image_msg_.data.resize(image_msg_.width * image_msg_.height * 3);
                                           camera_pub_.publish(image_msg_, camera_info_msg_);
 
-                                          if (use_record)
-                                          {
-                                            cv_image = cv_bridge::toCvCopy(image_msg_);
-                                            cv::Mat image = cv_image->image;
-                                            out_.write(image);
-                                          }
                                           MV_CC_FreeImageBuffer(camera_handle_, &OutFrame);
                                         }
                                         else
@@ -232,7 +210,6 @@ namespace hik_camera
     sensor_msgs::msg::CameraInfo camera_info_msg_;
 
     std::thread capture_thread_;
-    cv::VideoWriter out_;
 
     OnSetParametersCallbackHandle::SharedPtr params_callback_handle_;
   };

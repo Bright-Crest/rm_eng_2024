@@ -47,14 +47,14 @@ namespace video_recorder
     {
         try
         {
-            cv_bridge::CvImageConstPtr frame = cv_bridge::toCvShare(msg, "rgb8");
+            cv_bridge::CvImageConstPtr frame = cv_bridge::toCvShare(msg, "bgr8");
             cv::Mat image = frame->image;
             out_.write(image);
         }
         catch (const cv_bridge::Exception &e)
         {
             auto logger = rclcpp::get_logger("VideoRecorder Error");
-            RCLCPP_ERROR(logger, "Could not convert from '%s' to 'rgb8'.", msg->encoding.c_str());
+            RCLCPP_ERROR(logger, "Could not convert from sensor_msgs::msg::Image of encoding '%s' to cv::Mat of encoding 'bgr8'.", msg->encoding.c_str());
         }
     }
 } // namespace video_recorder

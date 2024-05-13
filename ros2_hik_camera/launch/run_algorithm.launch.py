@@ -23,8 +23,6 @@ def generate_launch_description():
                           default_value = 'true')
     declare_is_debug = DeclareLaunchArgument(name = 'is_debug',
                           default_value = 'true')
-    declare_use_record =  DeclareLaunchArgument(name='use_record',
-                              default_value='true')
     declare_params_file =  DeclareLaunchArgument(name='params_file',
                               default_value=params_file)
     declare_camera_info =  DeclareLaunchArgument(name='camera_info_url',
@@ -40,8 +38,7 @@ def generate_launch_description():
                 package = 'hik_camera',
                 plugin = 'hik_camera::HikCameraNode',
                 name = 'hik_camera_node',
-                parameters =[{'camera_info_url':LaunchConfiguration('camera_info_url')},
-                             {'use_record':LaunchConfiguration('use_record')}],
+                parameters =[{'camera_info_url':LaunchConfiguration('camera_info_url')}],
                 extra_arguments=[{'use_intra_process_comms': True}]
             ),
             ComposableNode(
@@ -61,7 +58,6 @@ def generate_launch_description():
     return LaunchDescription([
         declare_params_file,
         declare_camera_info,
-        declare_use_record,
         declare_is_serial_used,
         declare_is_gpu,
         declare_is_debug,

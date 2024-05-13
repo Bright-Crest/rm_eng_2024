@@ -14,10 +14,11 @@ namespace image_process
 
   bool ImageProcessor::DetermineAbitraryPointsOrder(const std::vector<cv::Point2f> &whole_points, const std::vector<std::string> &classes, std::vector<int> &order)
   {
-    // 3 key points(whole points) corresponding to 1 bounding box(class)
+    // 3 key points per object
     if (whole_points.size() / 3 != classes.size())
       return false;
 
+    // get the middle point of each object
     std::vector<cv::Point2f> points;
     for (size_t i = 0; i < classes.size(); ++i)
       points.emplace_back(whole_points[3 * i + 1]);
@@ -40,6 +41,7 @@ namespace image_process
     int normal_corner_count = classes.size() - special_corner_count;
     if (normal_corner_count > 3)
     {
+      // TODO: filter
       std::cerr << "Error: ImageProcessor::DetermineAbitraryPointsOrder(): more than 3 normal corner count\n";
       return false;
     }
@@ -64,14 +66,6 @@ namespace image_process
                 { return a.first >= b.first; });
       if (normal_corner_count == 3)
       {
-        cv::Point2f center{0, 0};
-        for (auto &point : points)
-        {
-          center.x += point.x;
-          center.y += point.y;
-        }
-        center.x /= points.size();
-        center.y /= points.size();
         for (auto &i : angles_and_indices)
           order.emplace_back(i.second);
         auto tmp_it = std::find(order.begin(), order.end(), special_idx);
@@ -106,6 +100,7 @@ namespace image_process
             order[3] = pair_idx;
           else
             std::cerr << "Warning: ImageProcessor::DetermineAbitraryPointsOrder(): can not completely determine order\n";
+          // TODO: fix potential overriding
         }
       }
     } // special_corner_count == 0
@@ -211,13 +206,7 @@ namespace image_process
     // the side plate situation
     // @todo add the left side situation
     {
-      image_points_ = whole_required_points;
-      src_points = side_plate_object_points_;
-      for (int i = 0; i < 2; ++i)
-      {
-        src_points.emplace_back((src_points[i] + src_points[i + 1]) / 2.f);
-        image_points_.emplace_back((image_points_[i] + image_points_[i + 1]) / 2.f);
-      }
+      return false;
     }
     else
     {
