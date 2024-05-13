@@ -202,6 +202,19 @@ rclcpp_components_register_node(${IMAGE_PROCESS}
   EXECUTABLE ${IMAGE_PROCESS}_node
 )
 
+set(VIDEO_RECORDER video_recorder)
+ament_auto_add_library(${VIDEO_RECORDER} SHARED 
+  src/video_recorder_node.cpp
+)
+target_link_libraries(${VIDEO_RECORDER}
+  opencv_highgui  
+  ${OpenCV_LIBS}
+)
+rclcpp_components_register_node(${VIDEO_RECORDER}
+  PLUGIN video_recorder::VideoRecorderNode 
+  EXECUTABLE ${VIDEO_RECORDER}_node
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   list(APPEND AMENT_LINT_AUTO_EXCLUDE
