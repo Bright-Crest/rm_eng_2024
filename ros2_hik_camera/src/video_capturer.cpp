@@ -45,7 +45,7 @@ namespace video_capturer
       bool is_video = true;
       cv::Mat frame_temp;
       std::string suffix = video_url.substr(video_url.find_last_of('.') + 1);
-      if (suffix != "mp4")
+      if (suffix != "mp4" &&  suffix != "avi")
         is_video = false;
 
       if (is_video)
