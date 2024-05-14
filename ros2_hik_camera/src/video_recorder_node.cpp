@@ -17,7 +17,7 @@ namespace video_recorder
         std::time_t current_time = std::time(nullptr);
         std::tm *local_time = std::localtime(&current_time);
         std::stringstream filename_stream;
-        filename_stream << std::put_time(local_time, "%Y-%m-%d_%H-%M-%S") << ".avi";
+        filename_stream << package_share_directory+"/../../../../" << std::put_time(local_time, "%Y-%m-%d_%H-%M-%S") << ".avi";
         std::string output_file = filename_stream.str();
 
         // 设置视频编解码器和输出文件名
@@ -49,9 +49,9 @@ namespace video_recorder
         {
             cv_bridge::CvImageConstPtr frame = cv_bridge::toCvShare(msg, "rgb8");
             cv::Mat image = frame->image;
-	    cv::Mat rgbFrame;
-	    cv::cvtColor(image, rgbFrame, cv::COLOR_BGR2RGB);
-            out_.write(rgbFrame);
+            cv::Mat bgrFrame;
+            cv::cvtColor(image, bgrFrame, cv::COLOR_RGB2BGR);
+            out_.write(bgrFrame);
         }
         catch (const cv_bridge::Exception &e)
         {
