@@ -56,6 +56,10 @@ namespace ExchangeInfo
 
 namespace image_process
 {
+      /// @brief utility function; calculate the angle between 2 vectors of 2 dimensions
+      template <typename _Tp>
+      double CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2);
+
     // imgmsg => cv Mat => yolov8 model => solvePnP
     class ImageProcessor
     {
@@ -64,9 +68,9 @@ namespace image_process
         cv::Matx33f camera_matrix_{863.060425, 0.000000, 626.518063, 0.000000, 863.348503, 357.765589, 0.000000, 0.000000, 1.000000};
         cv::Vec<float, 5> distortion_coefficients_{-0.082726, 0.069328, 0.000180, -0.002923, 0.000000};
 
-        int point_num_;
-        int expected_object_num_;
-        int special_corner_num_;
+        unsigned int point_num_;
+        unsigned int expected_object_num_;
+        unsigned int special_corner_num_;
         double parallel_threshold_;
         // for SolvePnP()
         static const std::vector<cv::Point3f> object_points_;
@@ -83,10 +87,6 @@ namespace image_process
         cv::Vec3f tvec_;
         cv::Vec3f last_tvec_;
 
-        /// @brief utility function; calculate the angle between 2 vectors of 2 dimensions
-        template <_Tp>
-        double CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2);
-
         /// @brief filter predict_result_; ensure no more than expected_object_num_ objects and ensure no more than special_corner_num_ special objects
         std::vector<yolov8::Detection> FilterObjects();
 
@@ -101,7 +101,7 @@ namespace image_process
         ImageProcessor() = default;
         ~ImageProcessor() = default;
 
-        void init(double parallel_threshold = 0.08, int expected_object_num = 4, int special_corner_num = 1);
+        void init(double parallel_threshold = 0.08, unsigned int expected_object_num = 4, unsigned int special_corner_num = 1);
 
         /// @brief get camera_matrix and distortion_coefficients from the first frame
         void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
@@ -109,7 +109,9 @@ namespace image_process
         inline void ModelPredict(const cv::Mat &image) { 
           model_.runInference(image, predict_result_); 
           if (!predict_result_.empty())
-            point_num_ = predict_result_.front().keypoints.size()}
+	  {
+            point_num_ = predict_result_.front().keypoints.size(); 
+	  }}
         // call after calling ModelPrdeict()
         // modify image_points_
         bool SolvePnP();

@@ -6,19 +6,19 @@
 
 namespace image_process
 {
+  template <typename _Tp>
+  double CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2)
+  {
+      double norm_vector1 = std::sqrt(vector1.dot(vector1));
+      double norm_vector2 = std::sqrt(vector2.dot(vector2));
+      return vector1.dot(vector2) / (norm_vector1 * norm_vector2);
+  }
+
   const std::vector<cv::Point3f> ImageProcessor::object_points_{
       {LEN_A, LEN_B, 0.0f}, {LEN_A, LEN_A, 0.0f}, {LEN_B, LEN_A, 0.0f}, {-LEN_B, LEN_A, 0.0f}, {-LEN_A, LEN_A, 0.0f}, {-LEN_A, LEN_B, 0.0f}, {-LEN_A, -LEN_B, 0.0f}, {-LEN_A, -LEN_A, 0.0f}, {-LEN_B, -LEN_A, 0.0f}, {LEN_B, -LEN_A, 0.0f}, {LEN_A, -LEN_A, 0.0f}, {LEN_A, -LEN_B, 0.0f}};
   // the right plate
   const std::vector<cv::Point3f> ImageProcessor::side_plate_object_points_{
       {144.0f, SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}, {144.0f, 0, SIDE_LEN_B}, {144.0f, -SIDE_LEN_A, -SIDE_LEN_A - SIDE_LEN_B}};
-
-  template <_Tp>
-  double ImageProcessor::CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2);
-  {
-      double norm_vector1 = std::sqrt(vector1.dot(line_start));
-      double norm_vector2 = std::sqrt(vector2.dot(line_end));
-      return vector1.dot(vector2) / (norm_vector1 * norm_vector2);
-  }
 
   std::vector<yolov8::Detection> ImageProcessor::FilterObjects()
   {
@@ -26,11 +26,11 @@ namespace image_process
     std::vector<yolov8::Detection> filtered_objects = predict_result_;
 
     // downsize to expected_object_num_; filter by confidences
-    if (filtered_objects.size() > expected_object_num_)
+    if (filtered_objects.size() > (long unsigned int)expected_object_num_)
     {
       std::sort(filtered_objects.begin(), filtered_objects.end(),
                 [](const yolov8::Detection &a, const yolov8::Detection &b) -> bool
-                { return a.confidence > b.confidence});
+                { return a.confidence > b.confidence; });
       filtered_objects.resize(expected_object_num_);
     }
 
@@ -44,31 +44,32 @@ namespace image_process
       else if (object.class_name == ExchangeInfo::Normal_Corner_Tag)
         normal_corners.emplace_back(object);
     }
-    if (special_corners.size() > special_corner_num_)
+    if (special_corners.size() > (long unsigned int)special_corner_num_)
       special_corners.resize(special_corner_num_);
-    if (normal_corners.size() > expected_object_num_ - special_corner_num_)
+    if (normal_corners.size() > (long unsigned int)(expected_object_num_ - special_corner_num_))
       normal_corners.resize(expected_object_num_ - special_corner_num_);
 
+    std::cout << "special corners: " << special_corners.size() << "normal corners: " << normal_corners.size() << std::endl;
     filtered_objects = std::move(normal_corners);
     for (auto &special_corner : special_corners)
     {
       filtered_objects.emplace_back(special_corner);
     }
 
-    // filter by angles (only supports 3 currently)
-    if (point_num_ == 3)
-    {
-      std::vector<std::vector<yolov8::Detection>::iterator> remove_iterators{};
-      // filter by the angle of the 3 key points (not parrallel)
-      for (auto it = filtered_objects.begin(); it != filtered_objects.end(); it++)
-      {
-        auto angle = CalcAngleOf2Vectors<float>(*it.keypoints[2] - *it.keypoints[1], *it.keypoints[0] - *it.keypoints[1]);
-        if (angle <= PARALLEL_THRESHOLD) 
-          remove_iterators.push_back(it);
-      }
-      for (auto &it : remove_iterators)
-        filtered_objects.erase(it);
-    }
+    // // filter by angles (only supports 3 currently)
+    // if (point_num_ == 3)
+    // {
+      // std::vector<std::vector<yolov8::Detection>::iterator> remove_iterators{};
+      // // filter by the angle of the 3 key points (not parrallel)
+      // for (auto it = filtered_objects.begin(); it != filtered_objects.end(); it++)
+      // {
+        // auto angle = CalcAngleOf2Vectors<float>(it->keypoints[2] - it->keypoints[1], it->keypoints[0] - it->keypoints[1]);
+        // if (angle <= PARALLEL_THRESHOLD) 
+          // remove_iterators.push_back(it);
+      // }
+      // for (auto &it : remove_iterators)
+        // filtered_objects.erase(it);
+    // }
 
     return filtered_objects;
   }
@@ -81,11 +82,11 @@ namespace image_process
 
     order.clear();
     order.reserve(expected_object_num_);
-    int special_corner_count = std::count(classes.begin(), classes.end(), ExchangeInfo::Special_Corner_Tag);
-    int normal_corner_count = classes.size() - special_corner_count;
+    unsigned int special_corner_count = std::count(classes.begin(), classes.end(), ExchangeInfo::Special_Corner_Tag);
+    unsigned int normal_corner_count = classes.size() - special_corner_count;
     // get the first point of each object
     std::vector<cv::Point2f> points;
-    for (size_t i = 0; i < classes.size(); ++i)
+    for (unsigned int i = 0; i < classes.size(); ++i)
       points.emplace_back(whole_points[point_num_ * i]);
 
     // start to calculate the order of the corner by angles
@@ -119,7 +120,7 @@ namespace image_process
       // normal_corner_count = 1, 2
       {
         order.push_back(special_idx);
-        for (int i = special_corner_num_; i < expected_object_num_ - special_corner_num_; i++)
+        for (unsigned int i = special_corner_num_; i < expected_object_num_ - special_corner_num_; i++)
           order.push_back(-1); // -1 stands for a missing corner
         cv::Point2f ref_line_1 = whole_points[3 * special_idx + 2] - whole_points[3 * special_idx + 1];
         cv::Point2f ref_line_2 = whole_points[3 * special_idx] - whole_points[3 * special_idx + 1];
@@ -136,11 +137,11 @@ namespace image_process
            * 2      ~ -1          ~ 0
            * 3      ~ 0           ~ -1
            */
-          if (abs(theta_1) > abs(theta_2) && abs(theta_1 + 1) < parrallel_threshold_)
+          if (abs(theta_1) > abs(theta_2) && abs(theta_1 + 1) < parallel_threshold_)
             order[2] = pair_idx;
-          else if (abs(theta_2 - 1) < parrallel_threshold_)
+          else if (abs(theta_2 - 1) < parallel_threshold_)
             order[1] = pair_idx;
-          else if (abs(theta_2 + 1) < parrallel_threshold_)
+          else if (abs(theta_2 + 1) < parallel_threshold_)
             order[3] = pair_idx;
           else
             std::cerr << "Warning: ImageProcessor::DetermineAbitraryPointsOrder(): can not completely determine order\n";
@@ -150,24 +151,26 @@ namespace image_process
       else if (normal_corner_count == 0)
       {
         order.push_back(special_idx);
-        for (int i = special_corner_num_; i < expected_object_num_ - special_corner_num_; i++)
+        for (unsigned int i = special_corner_num_; i < expected_object_num_ - special_corner_num_; i++)
           order.push_back(-1); // -1 stands for a missing corner
       }
       else // normal_corner_count > expected_object_num_ - special_corner_num_
       {
+	std::cerr << "normal_corner_count > expected_object_num_ - special_corner_num_" << std::endl;
         return false;
       }
     }
     else
     {
       // TODO: special_corner_count == 0
+      std::cerr << "special_corner_count == 0" << std::endl;
       return false;
     }
 
     return true;
   }
 
-  void ImageProcessor::init(double parallel_threshold, int expected_object_num, int special_corner_num)
+  void ImageProcessor::init(double parallel_threshold, unsigned int expected_object_num, unsigned int special_corner_num)
   {
     parallel_threshold_ = parallel_threshold;
     expected_object_num_ = expected_object_num;
@@ -227,34 +230,40 @@ namespace image_process
       classes.emplace_back(detection.class_name);
     }
 
-    int special_corner_count = std::count(classes.begin(), classes.end(), ExchangeInfo::Special_Corner_Tag);
-    int normal_corner_count = classes.size() - special_corner_count;
+    unsigned int special_corner_count = std::count(classes.begin(), classes.end(), ExchangeInfo::Special_Corner_Tag);
     
     // only supports special_corner_num_ == 1
     if (special_corner_num_ != 1)
       return false;
-    if (filtered_corners.size() > expected_object_num_)
+    if (filtered_corners.size() > (long unsigned int)expected_object_num_)
+    {
       return false;
+    }
     if (special_corner_count > special_corner_num_)
+    {
       return false;
+    }
 
     // the front plate situation
     if (classes.size() >= 1)
     {
       if (!DetermineAbitraryPointsOrder(whole_required_points, classes, order))
+      {
+      	std::cerr << "Error: Failed to solvePnP\n";
         return false;
+      }
 
       // apply order to points
       // the size of order must be expected_object_num_
-      for (int i = 0; i < order.size(); ++i)
+      for (unsigned int i = 0; i < order.size(); ++i)
       {
         const int index = order[i];
         if (index == -1)
           continue;
         for (auto &key_point : filtered_corners[index].keypoints)
           image_points_.emplace_back(key_point);
-        for (int j = 0; j < point_num_; j++)
-          src_points.emplace_back(object_points_[point_num_ * i + j])
+        for (unsigned int j = 0; j < point_num_; j++)
+          src_points.emplace_back(object_points_[point_num_ * i + j]);
       }
 
       // DEBUG; similar to `assert`
@@ -265,9 +274,9 @@ namespace image_process
       }
 
       // Insert middle points of the original points if only the points of one corner are left
-      if (image_points_.size() == point_num_ * 1)
+      if (image_points_.size() == (long unsigned int)point_num_ * 1)
       {
-        for (int i = 0; i < point_num_ - 1; ++i)
+        for (unsigned int i = 0; i < point_num_ - 1; ++i)
         {
           src_points.emplace_back((src_points[i] + src_points[i + 1]) / 2.f);
           image_points_.emplace_back((image_points_[i] + image_points_[i + 1]) / 2.f);
@@ -306,6 +315,7 @@ namespace image_process
     tvec_ = interpolation_coeff * tvec_ + (1.f - interpolation_coeff) * last_tvec_;
     last_tvec_ = tvec_;
 
+    std::cout << "SolvePnP() success" << std::endl;
     return true;
   }
 
@@ -387,7 +397,7 @@ namespace image_process
     }
   }
 
-  void ImageProcessNode::AddSolvePnPResult(cv::Mat img)
+  void ImageProcessor::AddSolvePnPResult(cv::Mat img)
   {
       cv::Point3f real_center{};
       std::vector<cv::Point3f> xyz_points;

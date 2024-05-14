@@ -74,7 +74,7 @@ namespace image_process
                                               // RCLCPP_INFO(this->get_logger(), "%d!", frame_queue_.size());
 
                                               img_processor_.ModelPredict(frame->image);
-                                              img_processor_.AddPredictResult(frame->image, is_debug_, is_debug_, is_debug_);
+                                              img_processor_.AddPredictResult(frame->image, is_debug_, false, is_debug_);
                                               if (img_processor_.SolvePnP())
                                               {
                                                   img_processor_.AddSolvePnPResult(frame->image);

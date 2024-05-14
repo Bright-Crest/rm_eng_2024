@@ -1,3 +1,6 @@
+/// SYSTEM
+#include <chrono> 
+#include <thread>
 /// ROS
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/logging.hpp>
@@ -98,7 +101,8 @@ namespace video_capturer
                                         {
                                           image_msg_ptr_ = cv_bridge::CvImage(hdr, "bgr8", frame).toImageMsg();
                                           video_pub_.publish(*image_msg_ptr_, camera_info_msg_);
-                                          cv::waitKey(30);
+					  // @TODO: Add FPS option
+					  std::this_thread::sleep_for(std::chrono::milliseconds(30));
                                         }
                                         else
                                         {
