@@ -47,9 +47,11 @@ namespace video_recorder
     {
         try
         {
-            cv_bridge::CvImageConstPtr frame = cv_bridge::toCvShare(msg, "bgr8");
+            cv_bridge::CvImageConstPtr frame = cv_bridge::toCvShare(msg, "rgb8");
             cv::Mat image = frame->image;
-            out_.write(image);
+	    cv::Mat rgbFrame;
+	    cv::cvtColor(image, rgbFrame, cv::COLOR_BGR2RGB);
+            out_.write(rgbFrame);
         }
         catch (const cv_bridge::Exception &e)
         {

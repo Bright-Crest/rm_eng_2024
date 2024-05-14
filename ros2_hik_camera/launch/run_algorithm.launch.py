@@ -52,7 +52,12 @@ def generate_launch_description():
                 extra_arguments=[{'use_intra_process_comms': True}]
             )
         ],
-        output = 'screen',
+        output = 'both',
+    )
+    RecorderNode = Node(
+        package='hik_camera',
+        executable='video_recorder_node',
+        output='both'
     )
 
     return LaunchDescription([
@@ -61,5 +66,6 @@ def generate_launch_description():
         declare_is_serial_used,
         declare_is_gpu,
         declare_is_debug,
-        container
+        container,
+        RecorderNode
         ])

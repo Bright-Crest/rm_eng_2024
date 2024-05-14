@@ -125,7 +125,6 @@ namespace hik_camera
       {
         capture_thread_.join();
       }
-      out_.release();
       if (camera_handle_)
       {
         MV_CC_StopGrabbing(camera_handle_);
