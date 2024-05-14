@@ -39,7 +39,7 @@
 
 // For model inference
 #define MODEL_INPUT_SHAPE cv::Size(640, 640)
-#define MODEL_SCORE_THRESHOLD 0.75f
+#define MODEL_SCORE_THRESHOLD 0.70f
 #define MODEL_NMS_THRESHOLD 0.50f
 
 // only for GPU inference
@@ -56,9 +56,9 @@ namespace ExchangeInfo
 
 namespace image_process
 {
-      /// @brief utility function; calculate the angle between 2 vectors of 2 dimensions
-      template <typename _Tp>
-      double CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2);
+    /// @brief utility function; calculate the angle between 2 vectors of 2 dimensions
+    template <typename _Tp>
+    double CalcAngleOf2Vectors(const cv::Point_<_Tp> &vector1, const cv::Point_<_Tp> &vector2);
 
     // imgmsg => cv Mat => yolov8 model => solvePnP
     class ImageProcessor
@@ -107,11 +107,11 @@ namespace image_process
         void GetCameraInfo(const sensor_msgs::msg::CameraInfo::ConstSharedPtr &camera_info);
 
         inline void ModelPredict(const cv::Mat &image) { 
-          model_.runInference(image, predict_result_); 
-          if (!predict_result_.empty())
-	  {
-            point_num_ = predict_result_.front().keypoints.size(); 
-	  }}
+            model_.runInference(image, predict_result_); 
+            if (!predict_result_.empty())
+            {
+                point_num_ = predict_result_.front().keypoints.size(); 
+	        }}
         // call after calling ModelPrdeict()
         // modify image_points_
         bool SolvePnP();

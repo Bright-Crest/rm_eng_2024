@@ -25,15 +25,6 @@ namespace image_process
     // do not modify predict_results_ in this method
     std::vector<yolov8::Detection> filtered_objects = predict_result_;
 
-    // downsize to expected_object_num_; filter by confidences
-    if (filtered_objects.size() > (long unsigned int)expected_object_num_)
-    {
-      std::sort(filtered_objects.begin(), filtered_objects.end(),
-                [](const yolov8::Detection &a, const yolov8::Detection &b) -> bool
-                { return a.confidence > b.confidence; });
-      filtered_objects.resize(expected_object_num_);
-    }
-
     // filter special/normal corners by confidences
     std::vector<yolov8::Detection> special_corners{};
     std::vector<yolov8::Detection> normal_corners{};
@@ -45,32 +36,41 @@ namespace image_process
         normal_corners.emplace_back(object);
     }
     if (special_corners.size() > (long unsigned int)special_corner_num_)
+    {
+      std::sort(special_corners.begin(), special_corners.end(),
+                [](const yolov8::Detection &a, const yolov8::Detection &b) -> bool
+                { return a.confidence > b.confidence; });
       special_corners.resize(special_corner_num_);
+    }
     if (normal_corners.size() > (long unsigned int)(expected_object_num_ - special_corner_num_))
+    {
+      std::sort(normal_corners.begin(), normal_corners.end(),
+                [](const yolov8::Detection &a, const yolov8::Detection &b) -> bool
+                { return a.confidence > b.confidence; });
       normal_corners.resize(expected_object_num_ - special_corner_num_);
+    }
 
-    std::cout << "special corners: " << special_corners.size() << "normal corners: " << normal_corners.size() << std::endl;
+    std::cout << "special corners: " << special_corners.size() << "\t" << "normal corners: " << normal_corners.size() << std::endl;
     filtered_objects = std::move(normal_corners);
     for (auto &special_corner : special_corners)
     {
       filtered_objects.emplace_back(special_corner);
     }
 
-    // // filter by angles (only supports 3 currently)
-    // if (point_num_ == 3)
-    // {
-      // std::vector<std::vector<yolov8::Detection>::iterator> remove_iterators{};
-      // // filter by the angle of the 3 key points (not parrallel)
-      // for (auto it = filtered_objects.begin(); it != filtered_objects.end(); it++)
-      // {
-        // auto angle = CalcAngleOf2Vectors<float>(it->keypoints[2] - it->keypoints[1], it->keypoints[0] - it->keypoints[1]);
-        // if (angle <= PARALLEL_THRESHOLD) 
-          // remove_iterators.push_back(it);
-      // }
-      // for (auto &it : remove_iterators)
-        // filtered_objects.erase(it);
-    // }
-
+    // filter by angles (only supports 3 currently)
+    if (point_num_ == 3)
+    {
+      std::vector<std::vector<yolov8::Detection>::iterator> remove_iterators{};
+      // filter by the angle of the 3 key points (not parrallel)
+      for (auto it = filtered_objects.begin(); it != filtered_objects.end(); it++)
+      {
+        auto angle = CalcAngleOf2Vectors<float>(it->keypoints[2] - it->keypoints[1], it->keypoints[0] - it->keypoints[1]);
+        if (std::abs(angle) <= PARALLEL_THRESHOLD) 
+          remove_iterators.push_back(it);
+      }
+      for (auto &it : remove_iterators)
+        filtered_objects.erase(it);
+    }
     return filtered_objects;
   }
 
@@ -139,9 +139,9 @@ namespace image_process
            */
           if (abs(theta_1) > abs(theta_2) && abs(theta_1 + 1) < parallel_threshold_)
             order[2] = pair_idx;
-          else if (abs(theta_2 - 1) < parallel_threshold_)
+          else if (abs(theta_1) < abs(theta_2) && abs(theta_2 - 1) < parallel_threshold_)
             order[1] = pair_idx;
-          else if (abs(theta_2 + 1) < parallel_threshold_)
+          else if (abs(theta_1) < abs(theta_2) && abs(theta_2 + 1) < parallel_threshold_)
             order[3] = pair_idx;
           else
             std::cerr << "Warning: ImageProcessor::DetermineAbitraryPointsOrder(): can not completely determine order\n";
@@ -156,7 +156,7 @@ namespace image_process
       }
       else // normal_corner_count > expected_object_num_ - special_corner_num_
       {
-	std::cerr << "normal_corner_count > expected_object_num_ - special_corner_num_" << std::endl;
+	      std::cerr << "normal_corner_count > expected_object_num_ - special_corner_num_" << std::endl;
         return false;
       }
     }
