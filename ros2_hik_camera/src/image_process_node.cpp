@@ -44,10 +44,12 @@ namespace image_process
         config.classes.push_back(ExchangeInfo::Special_Corner_Tag);
         config.classes.push_back(ExchangeInfo::Normal_Corner_Tag);
         config.point_num = POINT_NUM;
+        // TODO: specify the directory to generate or find the engine file
         config.engineDirectory = this->declare_parameter("engine_dir", package_share_directory);
 #ifdef ENABLE_GPU
         config.precision = PRECISION;
 #endif 
+        img_processor_.init(PARALLEL_THRESHOLD, EXPECTED_OBJECT_NUM, SPECIAL_CORNER_NUM);
         img_processor_.model_.init(model_path, config);
 
         image_sub_ = image_transport::create_camera_subscription(this, "image_raw",
@@ -73,9 +75,9 @@ namespace image_process
 
                                               img_processor_.ModelPredict(frame->image);
                                               img_processor_.AddPredictResult(frame->image, is_debug_, is_debug_, is_debug_);
-                                              if (img_processor_.SolvePnP(frame->image))
+                                              if (img_processor_.SolvePnP())
                                               {
-                                                  AddSolvePnPResult(frame->image);
+                                                  img_processor_.AddSolvePnPResult(frame->image);
                                                   img_processor_.AddImagePoints(frame->image, is_debug_, is_debug_);
                                                   if (is_serial_used_)
                                                   {
@@ -160,25 +162,6 @@ namespace image_process
         send_data_buffer[15] = crc_result;
         send_data_buffer[16] = crc_result >> 8;
         transport_serial_.write(send_data_buffer, sizeof(send_data_buffer));
-    }
-
-    void ImageProcessNode::AddSolvePnPResult(cv::Mat img)
-    {
-        cv::Point3f real_center{};
-        std::vector<cv::Point3f> xyz_points;
-        for (unsigned int i = 0; i < 3; ++i)
-        {
-            cv::Vec3f tmp{};
-            tmp(i) = LEN_A;
-            xyz_points.emplace_back(std::move(tmp));
-        }
-
-        cv::Point2i real_center_pic = img_processor_.Object2Picture(real_center);
-        for (auto &point : xyz_points)
-        {
-            cv::Point2i point_pic = img_processor_.Object2Picture(point);
-            cv::arrowedLine(img, real_center_pic, point_pic, cv::Scalar(255, 0, 255), 2);
-        }
     }
 } // namespace image_process
 
