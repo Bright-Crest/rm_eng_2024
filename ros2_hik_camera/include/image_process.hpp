@@ -4,6 +4,8 @@
 
 // system
 #include <chrono>
+#include <cmath>
+#include <algorithm>
 
 /// ros2
 #include <image_transport/image_transport.hpp>

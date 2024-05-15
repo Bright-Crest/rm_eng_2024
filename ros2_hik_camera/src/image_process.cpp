@@ -282,11 +282,12 @@ namespace image_process
       if (add_boxes)
       {
         cv::rectangle(img, detection.box, cv::Scalar(255, 255, 255), 2);
+
         std::string classString = detection.class_name + ' ' + std::to_string(detection.confidence).substr(0, 4);
         cv::Size textSize = cv::getTextSize(classString, cv::FONT_HERSHEY_DUPLEX, 1, 2, 0);
-        cv::Rect textBox(detection.box.x, detection.box.y - 40, textSize.width + 10, textSize.height + 20);
+        cv::Rect textBox(std::clamp(detection.box.x, 0, img.cols - textSize.width - 10), std::clamp(detection.box.y - 20 - textSize.height, 0, img.rows - textSize.height - 20), textSize.width + 10, textSize.height + 20);
         cv::rectangle(img, textBox, cv::Scalar(255, 255, 255), cv::FILLED);
-        cv::putText(img, classString, cv::Point(detection.box.x + 5, detection.box.y - 10), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
+        cv::putText(img, classString, cv::Point(textBox.x + 5, textBox.y + 10 + textSize.height), cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(0, 0, 0), 2, 0);
       }
       // prevent misidentification
       if (add_keypoints)
